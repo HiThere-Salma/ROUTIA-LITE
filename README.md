@@ -1,6 +1,6 @@
 # ROUTIA-LITE
 
-Interface d'administration web légère pour la plateforme RoutIA.
+Interface web légère pour la plateforme RoutIA.
 
 ## Stack technique
 
