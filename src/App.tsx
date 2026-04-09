@@ -1,5 +1,7 @@
 import './App.css'
 import { useState } from 'react'
+import AgriculteurPage from './pages/AgriculteurPage'
+import TransporteurPage from './pages/TransporteurPage'
 
 const navItems = [
   { label: 'Dashboard', icon: '▦' },
@@ -35,6 +37,11 @@ const transporteurs = [
 
 function App() {
   const [active, setActive] = useState('Dashboard')
+
+  const searchPlaceholder =
+    active === 'Gestion des agriculteurs' ? 'Rechercher un agriculteur, un CIN ou une ville...' :
+    active === 'Gestion des transporteurs' ? 'Rechercher un transporteur...' :
+    'Rechercher une commande, un transporteur...'
 
   return (
     <div className="app-shell">
@@ -72,14 +79,25 @@ function App() {
         <header className="topbar">
           <div className="topbar-search">
             <span className="search-icon">🔍</span>
-            <input className="search-input" placeholder="Rechercher une commande, un transporteur..." />
+            <input className="search-input" placeholder={searchPlaceholder} />
           </div>
           <div className="topbar-right">
+            {active === 'Gestion des agriculteurs' && (
+              <button className="btn-add-agri">＋ Ajouter un agriculteur</button>
+            )}
+            {active === 'Gestion des transporteurs' && (
+              <button className="btn-add-agri">＋ Ajouter un transporteur</button>
+            )}
             <button className="icon-btn">🔔</button>
             <button className="icon-btn">⚙️</button>
           </div>
         </header>
 
+        {active === 'Gestion des agriculteurs' ? (
+          <AgriculteurPage />
+        ) : active === 'Gestion des transporteurs' ? (
+          <TransporteurPage />
+        ) : (
         <div className="dashboard">
           <div className="dashboard-hero">
             <h1 className="dashboard-title">Tableau de Bord</h1>
@@ -174,6 +192,7 @@ function App() {
             </div>
           </div>
         </div>
+        )}
       </main>
 
       <button className="fab">+</button>
