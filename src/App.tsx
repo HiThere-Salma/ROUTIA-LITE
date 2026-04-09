@@ -1,57 +1,47 @@
-import { useState, useEffect } from 'react'
 import './App.css'
-import { supabase, supabaseConfigStatus } from './lib/supabase/supabase.client'
+import { useState } from 'react'
 
 const navItems = [
   { label: 'Dashboard', icon: '▦' },
-  { label: 'Gestion des transporteurs', icon: '◎' },
-  { label: 'Gestion des agriculteurs', icon: '◈' },
-  { label: 'Gestion des routes', icon: '⟋' },
-  { label: 'Gestion des commandes', icon: '◻' },
+  { label: 'Gestion des commandes', icon: '📋' },
+  { label: 'Gestion des transporteurs', icon: '🚚' },
+  { label: 'Gestion des agriculteurs', icon: '🌾' },
+  { label: 'Gestion des routes', icon: '🗺️' },
 ]
 
 const stats = [
-  { label: 'Commandes actives', value: '—' },
-  { label: 'Transporteurs en route', value: '—' },
-  { label: 'Agriculteurs inscrits', value: '—' },
-  { label: 'Routes configurées', value: '—' },
+  { label: 'Total commandes', value: '—', badge: '', badgeType: '' },
+  { label: 'Commandes en cours', value: '—', badge: 'En cours', badgeType: 'info' },
+  { label: 'Transporteurs actifs', value: '—', badge: 'Actifs', badgeType: 'success' },
+  { label: 'Livraisons complétées', value: '—', badge: 'Succès', badgeType: 'success' },
 ]
 
-type DbStatus = 'checking' | 'connected' | 'error'
+const commandes = [
+  { id: '#ORD-9021', client: 'Ferme du Soleil', statut: 'En route', statusType: 'route', date: '12 Oct 2024', montant: '—' },
+  { id: '#ORD-9022', client: 'Jean Dupont', statut: 'Préparation', statusType: 'prep', date: '12 Oct 2024', montant: '—' },
+  { id: '#ORD-8998', client: 'Bio-Logique SARL', statut: 'Livré', statusType: 'livre', date: '11 Oct 2024', montant: '—' },
+]
+
+const activite = [
+  { type: 'success', title: 'Livraison validée', desc: 'Commande #ORD-8998 signée par le client.', time: 'Il y a 2 min' },
+  { type: 'warning', title: 'Alerte retard', desc: 'Le transporteur Marc L. signale un trafic dense.', time: 'Il y a 14 min' },
+  { type: 'info', title: 'Nouvelle commande', desc: 'Assignation automatique pour #ORD-9025.', time: 'Il y a 1h' },
+]
+
+const transporteurs = [
+  { nom: 'Marc Lefebvre', route: 'Paris → Lyon', progress: 85 },
+  { nom: 'Sophie Martin', route: 'Bordeaux → Toulouse', progress: 22 },
+]
 
 function App() {
   const [active, setActive] = useState('Dashboard')
-  const [dbStatus, setDbStatus] = useState<DbStatus>('checking')
-  const [dbError, setDbError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!supabaseConfigStatus.isValid || !supabase) {
-      setDbStatus('error')
-      setDbError(supabaseConfigStatus.error ?? 'Configuration invalide')
-      return
-    }
-    supabase.auth.getSession()
-      .then(({ error }) => {
-        if (error) {
-          setDbStatus('error')
-          setDbError(error.message)
-        } else {
-          setDbStatus('connected')
-        }
-      })
-      .catch((err: unknown) => {
-        setDbStatus('error')
-        setDbError(err instanceof Error ? err.message : 'Erreur inconnue')
-      })
-  }, [])
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span className="logo-dot" />
-          <span className="logo-text">RoutIA</span>
-          <span className="logo-badge">LITE</span>
+          <span className="logo-text">ROUTIA</span>
+          <span className="logo-sub">COMMAND CENTER</span>
         </div>
 
         <nav className="sidebar-nav">
@@ -63,7 +53,6 @@ function App() {
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
-              {active === item.label && <span className="nav-indicator" />}
             </button>
           ))}
         </nav>
@@ -71,80 +60,123 @@ function App() {
         <div className="sidebar-footer">
           <div className="user-chip">
             <div className="user-avatar">A</div>
-            <span>Admin</span>
+            <div>
+              <div className="user-name">Admin User</div>
+              <div className="user-role">Logistics Ops</div>
+            </div>
           </div>
         </div>
       </aside>
 
       <main className="main-content">
         <header className="topbar">
-          <h1 className="page-title">{active}</h1>
+          <div className="topbar-search">
+            <span className="search-icon">🔍</span>
+            <input className="search-input" placeholder="Rechercher une commande, un transporteur..." />
+          </div>
           <div className="topbar-right">
-            <div className="status-pill">
-              <span className="status-dot" />
-              Système opérationnel
-            </div>
+            <button className="icon-btn">🔔</button>
+            <button className="icon-btn">⚙️</button>
           </div>
         </header>
 
-        {active === 'Dashboard' && (
-          <div className="dashboard">
-            <div className="stat-card" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{
-                width: 10, height: 10, borderRadius: '50%', display: 'inline-block',
-                backgroundColor: dbStatus === 'connected' ? '#22c55e' : dbStatus === 'error' ? '#ef4444' : '#f59e0b'
-              }} />
-              <span className="stat-label">
-                {dbStatus === 'checking' && 'Connexion Supabase…'}
-                {dbStatus === 'connected' && 'Connecté à Supabase'}
-                {dbStatus === 'error' && `Supabase : ${dbError}`}
-              </span>
-            </div>
-            <div className="stats-grid">
-              {stats.map((s) => (
-                <div key={s.label} className="stat-card">
-                  <span className="stat-value">{s.value}</span>
-                  <span className="stat-label">{s.label}</span>
-                </div>
-              ))}
-            </div>
+        <div className="dashboard">
+          <div className="dashboard-hero">
+            <h1 className="dashboard-title">Tableau de Bord</h1>
+            <p className="dashboard-sub">Vue d'ensemble de la performance logistique en temps réel.</p>
+          </div>
 
-            <div className="panels-grid">
+          <div className="stats-grid">
+            {stats.map((s) => (
+              <div key={s.label} className="stat-card">
+                <div className="stat-card-top">
+                  <span className="stat-icon">📊</span>
+                  {s.badge && <span className={`badge badge--${s.badgeType}`}>{s.badge}</span>}
+                </div>
+                <div className="stat-label">{s.label}</div>
+                <div className="stat-value">{s.value}</div>
+                <div className="stat-bar" />
+              </div>
+            ))}
+          </div>
+
+          <div className="bottom-grid">
+            <div className="bottom-left">
               <div className="panel">
                 <div className="panel-header">
                   <span>Commandes récentes</span>
-                  <span className="panel-tag">En attente de données</span>
+                  <button className="link-btn">Voir tout</button>
                 </div>
-                <div className="panel-empty">Aucune commande pour le moment</div>
+                <table className="cmd-table">
+                  <thead>
+                    <tr>
+                      <th>ID Commande</th>
+                      <th>Client / Agriculteur</th>
+                      <th>Statut</th>
+                      <th>Date</th>
+                      <th>Montant</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commandes.map((c) => (
+                      <tr key={c.id}>
+                        <td className="cmd-id">{c.id}</td>
+                        <td>{c.client}</td>
+                        <td><span className={`status-badge status--${c.statusType}`}>{c.statut}</span></td>
+                        <td className="muted">{c.date}</td>
+                        <td className="cmd-montant">{c.montant}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
-              <div className="panel">
+              <div className="panel" style={{ marginTop: '14px' }}>
                 <div className="panel-header">
-                  <span>Transporteurs en livraison</span>
-                  <span className="panel-tag">En attente de données</span>
+                  <span>Transporteurs en cours de livraison</span>
                 </div>
-                <div className="panel-empty">Aucun transporteur actif</div>
+                <div className="transporteurs-list">
+                  {transporteurs.map((t) => (
+                    <div key={t.nom} className="transporteur-card">
+                      <div className="t-icon">🚚</div>
+                      <div className="t-info">
+                        <div className="t-name">{t.nom}</div>
+                        <div className="t-route">Route: {t.route}</div>
+                      </div>
+                      <div className="t-progress-wrap">
+                        <span className="t-pct">{t.progress}%</span>
+                        <div className="t-bar">
+                          <div className="t-bar-fill" style={{ width: `${t.progress}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
+            </div>
 
-              <div className="panel panel--wide">
-                <div className="panel-header">
-                  <span>Suivis en temps réel</span>
-                  <span className="panel-tag">En attente de données</span>
-                </div>
-                <div className="panel-empty">Carte non configurée</div>
+            <div className="panel activite-panel">
+              <div className="panel-header">
+                <span>Activité Récente</span>
+              </div>
+              <div className="activite-list">
+                {activite.map((a, i) => (
+                  <div key={i} className="activite-item">
+                    <span className={`activite-dot dot--${a.type}`} />
+                    <div>
+                      <div className="activite-title">{a.title}</div>
+                      <div className="activite-desc">{a.desc}</div>
+                      <div className="activite-time">{a.time}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-        )}
-
-        {active !== 'Dashboard' && (
-          <div className="placeholder-page">
-            <div className="placeholder-icon">◻</div>
-            <p className="placeholder-title">{active}</p>
-            <p className="placeholder-sub">Module en cours de développement</p>
-          </div>
-        )}
+        </div>
       </main>
+
+      <button className="fab">+</button>
     </div>
   )
 }
