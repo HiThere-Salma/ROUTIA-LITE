@@ -2,6 +2,8 @@ import './App.css'
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Search, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList } from 'lucide-react'
+import AgriculteurPage from './pages/AgriculteurPage'
+import TransporteurPage from './pages/TransporteurPage'
 
 const navItems = [
   { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
@@ -62,72 +64,6 @@ function statusLabel(statut: string) {
 
 function App() {
   const [active, setActive] = useState('Dashboard')
-  const [commandes, setCommandes] = useState<Commande[]>([])
-  const [routes, setRoutes] = useState<Route[]>([])
-  const [stats, setStats] = useState<Stats>({
-    totalCommandes: 0,
-    commandesEnCours: 0,
-    transporteursActifs: 0,
-    livraisonsCompletes: 0,
-  })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
-
-  async function fetchDashboardData() {
-    setLoading(true)
-    try {
-      const [
-        { data: allCommandes },
-        { data: recentCommandes },
-        { data: transporteurs },
-        { data: recentRoutes },
-      ] = await Promise.all([
-        supabase.from('commandes').select('statut'),
-        supabase
-          .from('commandes')
-          .select('id, produit, prix, statut, date_collecte, agriculteur_id, utilisateurs!agriculteur_id(prenom, nom)')
-          .order('date_collecte', { ascending: false })
-          .limit(5),
-        supabase
-          .from('utilisateurs')
-          .select('id')
-          .eq('role', 'transporteur'),
-        supabase
-          .from('routes')
-          .select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(prenom, nom)')
-          .order('date', { ascending: false })
-          .limit(3),
-      ])
-
-      const total = allCommandes?.length ?? 0
-      const enCours = allCommandes?.filter(c => c.statut === 'en_route' || c.statut === 'preparation').length ?? 0
-      const livres = allCommandes?.filter(c => c.statut === 'livre').length ?? 0
-
-      setStats({
-        totalCommandes: total,
-        commandesEnCours: enCours,
-        transporteursActifs: transporteurs?.length ?? 0,
-        livraisonsCompletes: livres,
-      })
-
-      setCommandes((recentCommandes as any) ?? [])
-      setRoutes((recentRoutes as any) ?? [])
-    } catch (err) {
-      console.error('Erreur Supabase:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const statsCards = [
-    { label: 'Total commandes', value: stats.totalCommandes, badge: '', badgeType: '', icon: <ChartColumn size={22} color="var(--green)" /> },
-    { label: 'Commandes en cours', value: stats.commandesEnCours, badge: '', badgeType: 'info', icon: <ClipboardClock size={22} color="var(--green)" /> },
-    { label: 'Transporteurs actifs', value: stats.transporteursActifs, badge: '', badgeType: 'success', icon: <Truck size={22} color="var(--green)" /> },
-    { label: 'Livraisons complétées', value: stats.livraisonsCompletes, badge: '', badgeType: 'success', icon: <CircleCheckBig size={22} color="var(--green)" /> },
-  ]
 
   return (
     <div className="app-shell">
@@ -164,17 +100,27 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="topbar-right">
+            {active === 'Gestion des agriculteurs' && (
+              <button className="btn-add-agri">＋ Ajouter un agriculteur</button>
+            )}
+            {active === 'Gestion des transporteurs' && (
+              <button className="btn-add-agri">＋ Ajouter un transporteur</button>
+            )}
             <button className="icon-btn"><Bell size={16} /></button>
             <button className="icon-btn"><Settings size={16} /></button>
           </div>
         </header>
 
-        {active === 'Dashboard' && (
-          <div className="dashboard">
-            <div className="dashboard-hero">
-              <h1 className="dashboard-title">Tableau de Bord</h1>
-              <p className="dashboard-sub">Vue d'ensemble de la performance logistique en temps réel.</p>
-            </div>
+        {active === 'Gestion des agriculteurs' ? (
+          <AgriculteurPage />
+        ) : active === 'Gestion des transporteurs' ? (
+          <TransporteurPage />
+        ) : (
+        <div className="dashboard">
+          <div className="dashboard-hero">
+            <h1 className="dashboard-title">Tableau de Bord</h1>
+            <p className="dashboard-sub">Vue d'ensemble de la performance logistique en temps réel.</p>
+          </div>
 
             <div className="stats-grid">
               {statsCards.map((s) => (
