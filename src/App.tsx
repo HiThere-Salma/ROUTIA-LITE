@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
+import { supabase, supabaseConfigStatus } from './lib/supabase/supabase.client'
 
 const navItems = [
   { label: 'Dashboard', icon: '▦' },
@@ -16,8 +17,33 @@ const stats = [
   { label: 'Routes configurées', value: '—' },
 ]
 
+type DbStatus = 'checking' | 'connected' | 'error'
+
 function App() {
   const [active, setActive] = useState('Dashboard')
+  const [dbStatus, setDbStatus] = useState<DbStatus>('checking')
+  const [dbError, setDbError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!supabaseConfigStatus.isValid || !supabase) {
+      setDbStatus('error')
+      setDbError(supabaseConfigStatus.error ?? 'Configuration invalide')
+      return
+    }
+    supabase.auth.getSession()
+      .then(({ error }) => {
+        if (error) {
+          setDbStatus('error')
+          setDbError(error.message)
+        } else {
+          setDbStatus('connected')
+        }
+      })
+      .catch((err: unknown) => {
+        setDbStatus('error')
+        setDbError(err instanceof Error ? err.message : 'Erreur inconnue')
+      })
+  }, [])
 
   return (
     <div className="app-shell">
@@ -63,6 +89,17 @@ function App() {
 
         {active === 'Dashboard' && (
           <div className="dashboard">
+            <div className="stat-card" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{
+                width: 10, height: 10, borderRadius: '50%', display: 'inline-block',
+                backgroundColor: dbStatus === 'connected' ? '#22c55e' : dbStatus === 'error' ? '#ef4444' : '#f59e0b'
+              }} />
+              <span className="stat-label">
+                {dbStatus === 'checking' && 'Connexion Supabase…'}
+                {dbStatus === 'connected' && 'Connecté à Supabase'}
+                {dbStatus === 'error' && `Supabase : ${dbError}`}
+              </span>
+            </div>
             <div className="stats-grid">
               {stats.map((s) => (
                 <div key={s.label} className="stat-card">
