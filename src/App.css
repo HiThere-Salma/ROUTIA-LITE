@@ -29,10 +29,14 @@ body {
   font-family: var(--font-head);
   height: 100vh;
   overflow: hidden;
+  min-height: 0;
 }
 
 #root {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .app-shell {
@@ -40,6 +44,7 @@ body {
   grid-template-columns: 220px 1fr;
   height: 100vh;
   position: relative;
+  min-height: 0;
 }
 
 .sidebar {
@@ -165,6 +170,7 @@ body {
   flex-direction: column;
   overflow: hidden;
   background: var(--bg);
+  min-height: 0;
 }
 
 .topbar {
@@ -238,6 +244,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-height: 0;
 }
 
 .dashboard-title {
@@ -676,6 +683,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-height: 0;
 }
 
 .agri-toolbar {
@@ -831,6 +839,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-height: 0;
 }
 
 .tr-table-wrap {

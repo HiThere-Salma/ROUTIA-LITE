@@ -64,6 +64,53 @@ function statusLabel(statut: string) {
 
 function App() {
   const [active, setActive] = useState('Dashboard')
+  const [commandes, setCommandes] = useState<Commande[]>([])
+  const [routes, setRoutes] = useState<Route[]>([])
+  const [stats, setStats] = useState<Stats>({
+    totalCommandes: 0,
+    commandesEnCours: 0,
+    transporteursActifs: 0,
+    livraisonsCompletes: 0,
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
+
+  async function fetchDashboardData() {
+    setLoading(true)
+    try {
+      const [
+        { data: allCommandes },
+        { data: recentCommandes },
+        { data: transporteurs },
+        { data: recentRoutes },
+      ] = await Promise.all([
+        supabase.from('commandes').select('statut'),
+        supabase.from('commandes').select('id, produit, prix, statut, date_collecte, agriculteur_id, utilisateurs!agriculteur_id(prenom, nom)').order('date_collecte', { ascending: false }).limit(5),
+        supabase.from('utilisateurs').select('id').eq('role', 'transporteur'),
+        supabase.from('routes').select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(prenom, nom)').order('date', { ascending: false }).limit(3),
+      ])
+      const total = allCommandes?.length ?? 0
+      const enCours = allCommandes?.filter(c => c.statut === 'en_attente' || c.statut === 'assignee' || c.statut === 'recuperee' || c.statut === 'en_transport').length ?? 0
+      const livres = allCommandes?.filter(c => c.statut === 'livree').length ?? 0
+      setStats({ totalCommandes: total, commandesEnCours: enCours, transporteursActifs: transporteurs?.length ?? 0, livraisonsCompletes: livres })
+      setCommandes((recentCommandes as any) ?? [])
+      setRoutes((recentRoutes as any) ?? [])
+    } catch (err) {
+      console.error('Erreur Supabase:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const statsCards = [
+    { label: 'Total commandes', value: stats.totalCommandes, badge: '', badgeType: '', icon: <ChartColumn size={22} color="var(--green)" /> },
+    { label: 'Commandes en cours', value: stats.commandesEnCours, badge: '', badgeType: 'info', icon: <ClipboardClock size={22} color="var(--green)" /> },
+    { label: 'Transporteurs actifs', value: stats.transporteursActifs, badge: '', badgeType: 'success', icon: <Truck size={22} color="var(--green)" /> },
+    { label: 'Livraisons complétées', value: stats.livraisonsCompletes, badge: '', badgeType: 'success', icon: <CircleCheckBig size={22} color="var(--green)" /> },
+  ]
 
   return (
     <div className="app-shell">
@@ -111,16 +158,14 @@ function App() {
           </div>
         </header>
 
-        {active === 'Gestion des agriculteurs' ? (
-          <AgriculteurPage />
-        ) : active === 'Gestion des transporteurs' ? (
-          <TransporteurPage />
-        ) : (
-        <div className="dashboard">
-          <div className="dashboard-hero">
-            <h1 className="dashboard-title">Tableau de Bord</h1>
-            <p className="dashboard-sub">Vue d'ensemble de la performance logistique en temps réel.</p>
-          </div>
+        {active === 'Gestion des agriculteurs' && <AgriculteurPage />}
+        {active === 'Gestion des transporteurs' && <TransporteurPage />}
+        {active === 'Dashboard' && (
+          <div className="dashboard">
+            <div className="dashboard-hero">
+              <h1 className="dashboard-title">Tableau de Bord</h1>
+              <p className="dashboard-sub">Vue d'ensemble de la performance logistique en temps réel.</p>
+            </div>
 
             <div className="stats-grid">
               {statsCards.map((s) => (
@@ -257,8 +302,7 @@ function App() {
             </div>
           </div>
         )}
-
-        {active !== 'Dashboard' && (
+        {(active === 'Gestion des commandes' || active === 'Gestion des routes') && (
           <div className="placeholder-page">
             <div className="placeholder-icon"><LayoutDashboard size={36} color="var(--border)" /></div>
             <p className="placeholder-title">{active}</p>
