@@ -8,6 +8,7 @@ Interface web légère pour la plateforme RoutIA.
 - **Tailwind CSS** pour le styling
 - **Supabase** pour la base de données et l'authentification
 - **React Router** pour la navigation
+- **Lucide React** pour les icônes
 
 ## Architecture
 
@@ -31,7 +32,7 @@ npm install
 
 ## Configuration
 
-Crée un fichier `.env.local` à la racine :
+Crée un fichier `.env` à la racine :
 
 \`\`\`env
 VITE_SUPABASE_URL=your_supabase_url
