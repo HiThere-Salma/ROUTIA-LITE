@@ -4,13 +4,15 @@ import { supabase } from './lib/supabase'
 import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Search, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList } from 'lucide-react'
 import AgriculteurPage from './pages/AgriculteurPage'
 import TransporteurPage from './pages/TransporteurPage'
+import RoutesTestPage from './pages/RoutesTestPage'
 
 const navItems = [
   { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-  { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
   { label: 'Gestion des transporteurs', icon: <Truck size={16} /> },
   { label: 'Gestion des agriculteurs', icon: <Sprout size={16} /> },
   { label: 'Gestion des routes', icon: <Map size={16} /> },
+  { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
+  { label: 'MapQuest / Routes', icon: <Map size={16} /> },
 ]
 
 type Commande = {
@@ -160,6 +162,7 @@ function App() {
 
         {active === 'Gestion des agriculteurs' && <AgriculteurPage />}
         {active === 'Gestion des transporteurs' && <TransporteurPage />}
+        {active === 'MapQuest / Routes' && <RoutesTestPage />}
         {active === 'Dashboard' && (
           <div className="dashboard">
             <div className="dashboard-hero">
