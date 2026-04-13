@@ -1237,3 +1237,304 @@ body {
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* ── Modal Route ─────────────────────────────── */
+
+.rt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.rt-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.rt-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rt-modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rt-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.rt-modal-close:hover {
+  color: var(--text);
+  background: var(--bg3);
+}
+
+.rt-modal-form {
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rt-form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.rt-form-input,
+.rt-form-select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font-head);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.rt-form-input:focus,
+.rt-form-select:focus {
+  border-color: var(--green);
+}
+
+.rt-select-wrap {
+  position: relative;
+}
+
+.rt-select-wrap .rt-select-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.rt-form-select {
+  appearance: none;
+  padding-right: 34px;
+}
+
+.rt-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Multi-select commandes */
+
+.rt-multiselect {
+  position: relative;
+}
+
+.rt-multiselect-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font-head);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.rt-multiselect-trigger:hover,
+.rt-multiselect-trigger:focus {
+  border-color: var(--green);
+}
+
+.rt-multiselect-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rt-select-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.rt-select-icon--open {
+  transform: rotate(180deg);
+}
+
+.rt-multiselect-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.rt-multiselect-empty {
+  padding: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.rt-multiselect-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-head);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.rt-multiselect-option:last-child {
+  border-bottom: none;
+}
+
+.rt-multiselect-option:hover {
+  background: var(--bg3);
+}
+
+.rt-multiselect-option--selected {
+  background: var(--green-dim);
+}
+
+.rt-multiselect-option--selected:hover {
+  background: var(--green-mid);
+}
+
+.rt-option-check {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  color: var(--green);
+}
+
+.rt-multiselect-option--selected .rt-option-check {
+  border-color: var(--green);
+  background: var(--green-dim);
+}
+
+.rt-option-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.rt-option-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--green);
+}
+
+.rt-option-produit {
+  font-weight: 500;
+}
+
+.rt-option-adresse {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Actions modal */
+
+.rt-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.rt-btn-cancel {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-head);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.rt-btn-cancel:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.rt-btn-submit {
+  padding: 9px 22px;
+  border-radius: 8px;
+  border: none;
+  background: var(--green);
+  color: #0e0e0e;
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.rt-btn-submit:hover {
+  opacity: 0.9;
+}
+
+.rt-btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

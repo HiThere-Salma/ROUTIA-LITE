@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Search, Eye, Pencil, Trash2, Truck } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Search, Eye, Pencil, Trash2, Truck, X, ChevronDown, Check } from 'lucide-react'
+import { getSupabaseClient } from '../lib/supabase/supabase.client'
 
 type RouteData = {
-  id: string
-  routeId: string
+  id: number
   transporteur: string
   date: string
   heureDebut: string
@@ -12,23 +12,8 @@ type RouteData = {
   statut: 'en_cours' | 'terminee' | 'planifiee' | 'annulee'
 }
 
-const routesMock: RouteData[] = [
-  { id: '1', routeId: '#RT-4401', transporteur: 'Amrani Karim', date: '2026-04-09', heureDebut: '08:00', heureFin: '12:30', commandes: 5, statut: 'en_cours' },
-  { id: '2', routeId: '#RT-4392', transporteur: 'Zitouni Youssef', date: '2026-04-09', heureDebut: '07:30', heureFin: '11:00', commandes: 3, statut: 'terminee' },
-  { id: '3', routeId: '#RT-4388', transporteur: 'Lahlou Sofia', date: '2026-04-08', heureDebut: '09:00', heureFin: '14:00', commandes: 7, statut: 'planifiee' },
-  { id: '4', routeId: '#RT-4375', transporteur: 'Bennani Omar', date: '2026-04-08', heureDebut: '06:00', heureFin: '10:30', commandes: 4, statut: 'terminee' },
-  { id: '5', routeId: '#RT-4360', transporteur: 'Chraibi Leila', date: '2026-04-07', heureDebut: '08:30', heureFin: '13:00', commandes: 6, statut: 'en_cours' },
-  { id: '6', routeId: '#RT-4351', transporteur: 'Moussaoui Tarik', date: '2026-04-07', heureDebut: '07:00', heureFin: '11:30', commandes: 2, statut: 'annulee' },
-  { id: '7', routeId: '#RT-4340', transporteur: 'Berrada Samira', date: '2026-04-06', heureDebut: '09:30', heureFin: '15:00', commandes: 8, statut: 'terminee' },
-  { id: '8', routeId: '#RT-4329', transporteur: 'Ennaji Mehdi', date: '2026-04-06', heureDebut: '06:30', heureFin: '12:00', commandes: 5, statut: 'planifiee' },
-  { id: '9', routeId: '#RT-4310', transporteur: 'Ouali Fatima', date: '2026-04-05', heureDebut: '07:00', heureFin: '11:00', commandes: 3, statut: 'terminee' },
-  { id: '10', routeId: '#RT-4298', transporteur: 'Rachid Omar', date: '2026-04-05', heureDebut: '08:00', heureFin: '13:30', commandes: 6, statut: 'en_cours' },
-  { id: '11', routeId: '#RT-4285', transporteur: 'Haddou Nadia', date: '2026-04-04', heureDebut: '06:30', heureFin: '10:00', commandes: 4, statut: 'planifiee' },
-  { id: '12', routeId: '#RT-4270', transporteur: 'Tazi Hassan', date: '2026-04-04', heureDebut: '09:00', heureFin: '14:30', commandes: 9, statut: 'terminee' },
-  { id: '13', routeId: '#RT-4255', transporteur: 'Mansouri Zineb', date: '2026-04-03', heureDebut: '07:30', heureFin: '12:00', commandes: 5, statut: 'annulee' },
-  { id: '14', routeId: '#RT-4240', transporteur: 'Fahmi Karima', date: '2026-04-03', heureDebut: '08:00', heureFin: '11:30', commandes: 3, statut: 'en_cours' },
-  { id: '15', routeId: '#RT-4225', transporteur: 'Zahiri Mohamed', date: '2026-04-02', heureDebut: '06:00', heureFin: '10:30', commandes: 7, statut: 'terminee' },
-]
+type TransporteurOption = { id: string; nom: string; prenom: string }
+type CommandeOption = { id: string; produit: string; adresse_collecte: string; adresse_livraison: string }
 
 const STATUT_MAP: Record<RouteData['statut'], { label: string; className: string }> = {
   en_cours: { label: 'En cours', className: 'rt-status--encours' },
@@ -38,13 +23,154 @@ const STATUT_MAP: Record<RouteData['statut'], { label: string; className: string
 }
 
 export default function RoutePage() {
+  const [routes, setRoutes] = useState<RouteData[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
 
-  const filtered = routesMock.filter(
+  // Modal state
+  const [showModal, setShowModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [formDate, setFormDate] = useState('')
+  const [formHeureDepart, setFormHeureDepart] = useState('')
+  const [formHeureFin, setFormHeureFin] = useState('')
+  const [formTransporteurId, setFormTransporteurId] = useState('')
+  const [formCommandeIds, setFormCommandeIds] = useState<string[]>([])
+  const [transporteurs, setTransporteurs] = useState<TransporteurOption[]>([])
+  const [commandesOptions, setCommandesOptions] = useState<CommandeOption[]>([])
+  const [cmdDropdownOpen, setCmdDropdownOpen] = useState(false)
+
+  function resetForm() {
+    setFormDate('')
+    setFormHeureDepart('')
+    setFormHeureFin('')
+    setFormTransporteurId('')
+    setFormCommandeIds([])
+  }
+
+  // Fetch transporteurs & commandes when modal opens
+  useEffect(() => {
+    if (!showModal) return
+    const supabase = getSupabaseClient()
+
+    supabase
+      .from('utilisateurs')
+      .select('id, nom, prenom')
+      .eq('role', 'transporteur')
+      .order('nom')
+      .then(({ data }) => setTransporteurs((data as TransporteurOption[]) ?? []))
+
+    supabase
+      .from('commandes')
+      .select('id, produit, adresse_collecte, adresse_livraison')
+      .is('route_id', null)
+      .order('id')
+      .then(({ data }) => setCommandesOptions((data as CommandeOption[]) ?? []))
+  }, [showModal])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formTransporteurId || !formDate) return
+    setSubmitting(true)
+
+    try {
+      const supabase = getSupabaseClient()
+
+      const { data: newRoute, error: routeError } = await supabase
+        .from('routes')
+        .insert({
+          transporteur_id: formTransporteurId,
+          date: formDate,
+          heure_depart: formHeureDepart || null,
+          heure_fin: formHeureFin || null,
+        })
+        .select('id')
+        .single()
+
+      if (routeError) throw routeError
+
+      if (formCommandeIds.length > 0) {
+        const { error: cmdError } = await supabase
+          .from('commandes')
+          .update({ route_id: newRoute.id })
+          .in('id', formCommandeIds)
+
+        if (cmdError) throw cmdError
+      }
+
+      // Refresh table
+      setShowModal(false)
+      resetForm()
+      setLoading(true)
+      fetchRoutes()
+    } catch (err) {
+      console.error('Erreur création route:', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function toggleCommande(id: string) {
+    setFormCommandeIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    )
+  }
+
+  useEffect(() => {
+    fetchRoutes()
+  }, [])
+
+  async function fetchRoutes() {
+      try {
+        const supabase = getSupabaseClient()
+        const { data, error } = await supabase
+          .from('routes')
+          .select('id, date, heure_depart, heure_fin, utilisateurs!transporteur_id(nom, prenom), commandes!route_id(id, statut)')
+          .order('date', { ascending: false })
+
+        if (error) {
+          console.error('Supabase error details:', JSON.stringify(error))
+          throw error
+        }
+
+        const mapped: RouteData[] = (data ?? []).map((r: Record<string, unknown>) => {
+          const utilisateur = r.utilisateurs as { nom: string; prenom: string } | null
+          const cmds = (r.commandes ?? []) as { id: number; statut: string }[]
+
+          let statut: RouteData['statut'] = 'planifiee'
+          if (cmds.length > 0) {
+            const allDone = cmds.every((c) => c.statut === 'livree' || c.statut === 'terminee')
+            const allCancelled = cmds.every((c) => c.statut === 'annulee')
+            if (allDone) statut = 'terminee'
+            else if (allCancelled) statut = 'annulee'
+            else statut = 'en_cours'
+          }
+
+          return {
+            id: r.id as number,
+            transporteur: utilisateur
+              ? `${utilisateur.nom} ${utilisateur.prenom}`
+              : '—',
+            date: r.date as string,
+            heureDebut: (r.heure_depart as string) ?? '',
+            heureFin: (r.heure_fin as string) ?? '',
+            commandes: cmds.length,
+            statut,
+          }
+        })
+
+        setRoutes(mapped)
+      } catch (err) {
+        console.error('Erreur chargement routes:', err)
+      } finally {
+        setLoading(false)
+    }
+  }
+
+  const filtered = routes.filter(
     (r) =>
-      r.routeId.toLowerCase().includes(search.toLowerCase()) ||
+      String(r.id).toLowerCase().includes(search.toLowerCase()) ||
       r.transporteur.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -73,7 +199,7 @@ export default function RoutePage() {
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
           />
         </div>
-        <button className="btn-add-agri">＋ Ajouter une route</button>
+        <button className="btn-add-agri" onClick={() => setShowModal(true)}>＋ Ajouter une route</button>
       </div>
 
       {/* Tableau */}
@@ -91,7 +217,11 @@ export default function RoutePage() {
             </tr>
           </thead>
           <tbody>
-            {paginated.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="rt-empty">Chargement…</td>
+              </tr>
+            ) : paginated.length === 0 ? (
               <tr>
                 <td colSpan={7} className="rt-empty">Aucune route trouvée</td>
               </tr>
@@ -100,7 +230,7 @@ export default function RoutePage() {
                 const st = STATUT_MAP[r.statut]
                 return (
                   <tr key={r.id}>
-                    <td className="rt-mono">{r.routeId}</td>
+                    <td className="rt-mono">#{r.id}</td>
                     <td>
                       <div className="rt-transporteur-cell">
                         <Truck size={15} color="var(--green)" />
@@ -141,6 +271,125 @@ export default function RoutePage() {
           </div>
         </div>
       </div>
+
+      {/* Modal ajout route */}
+      {showModal && (
+        <div className="rt-modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="rt-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="rt-modal-header">
+              <h2 className="rt-modal-title">Nouvelle route</h2>
+              <button className="rt-modal-close" onClick={() => setShowModal(false)}><X size={18} /></button>
+            </div>
+
+            <form className="rt-modal-form" onSubmit={handleSubmit}>
+              {/* Transporteur */}
+              <label className="rt-form-label">
+                Transporteur
+                <div className="rt-select-wrap">
+                  <select
+                    className="rt-form-select"
+                    value={formTransporteurId}
+                    onChange={(e) => setFormTransporteurId(e.target.value)}
+                    required
+                  >
+                    <option value="">— Choisir un transporteur —</option>
+                    {transporteurs.map((t) => (
+                      <option key={t.id} value={t.id}>{t.nom} {t.prenom}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="rt-select-icon" />
+                </div>
+              </label>
+
+              {/* Date */}
+              <label className="rt-form-label">
+                Date
+                <input
+                  className="rt-form-input"
+                  type="date"
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  required
+                />
+              </label>
+
+              {/* Horaires */}
+              <div className="rt-form-row">
+                <label className="rt-form-label">
+                  Heure de départ
+                  <input
+                    className="rt-form-input"
+                    type="time"
+                    value={formHeureDepart}
+                    onChange={(e) => setFormHeureDepart(e.target.value)}
+                  />
+                </label>
+                <label className="rt-form-label">
+                  Heure de fin
+                  <input
+                    className="rt-form-input"
+                    type="time"
+                    value={formHeureFin}
+                    onChange={(e) => setFormHeureFin(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              {/* Commandes multi-select */}
+              <label className="rt-form-label">
+                Commandes à assigner
+                <div className="rt-multiselect">
+                  <button
+                    type="button"
+                    className="rt-multiselect-trigger"
+                    onClick={() => setCmdDropdownOpen((o) => !o)}
+                  >
+                    <span className="rt-multiselect-text">
+                      {formCommandeIds.length === 0
+                        ? '— Sélectionner des commandes —'
+                        : `${formCommandeIds.length} commande(s) sélectionnée(s)`}
+                    </span>
+                    <ChevronDown size={14} className={`rt-select-icon ${cmdDropdownOpen ? 'rt-select-icon--open' : ''}`} />
+                  </button>
+                  {cmdDropdownOpen && (
+                    <div className="rt-multiselect-dropdown">
+                      {commandesOptions.length === 0 ? (
+                        <div className="rt-multiselect-empty">Aucune commande disponible</div>
+                      ) : (
+                        commandesOptions.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className={`rt-multiselect-option ${formCommandeIds.includes(c.id) ? 'rt-multiselect-option--selected' : ''}`}
+                            onClick={() => toggleCommande(c.id)}
+                          >
+                            <span className="rt-option-check">
+                              {formCommandeIds.includes(c.id) && <Check size={12} />}
+                            </span>
+                            <span className="rt-option-info">
+                              <span className="rt-option-id">#{c.id}</span>
+                              <span className="rt-option-produit">{c.produit}</span>
+                            </span>
+                            <span className="rt-option-adresse">{c.adresse_collecte} → {c.adresse_livraison}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </label>
+
+              {/* Actions */}
+              <div className="rt-modal-actions">
+                <button type="button" className="rt-btn-cancel" onClick={() => { setShowModal(false); resetForm() }}>Annuler</button>
+                <button type="submit" className="rt-btn-submit" disabled={submitting}>
+                  {submitting ? 'Création…' : 'Créer la route'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

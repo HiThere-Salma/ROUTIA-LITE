@@ -154,9 +154,6 @@ function App() {
             {active === 'Gestion des transporteurs' && (
               <button className="btn-add-agri">＋ Ajouter un transporteur</button>
             )}
-            {active === 'Gestion des routes' && (
-              <button className="btn-add-agri">＋ Ajouter une route</button>
-            )}
             <button className="icon-btn"><Bell size={16} /></button>
             <button className="icon-btn"><Settings size={16} /></button>
           </div>
