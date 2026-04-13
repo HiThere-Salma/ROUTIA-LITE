@@ -30,19 +30,31 @@ function App() {
       setDbError(supabaseConfigStatus.error ?? 'Configuration invalide')
       return
     }
-    supabase.auth.getSession()
-      .then(({ error }) => {
+    const client = supabase
+
+    const runConnectionTest = async () => {
+      try {
+        const { data, error } = await client
+          .from('utilisateurs')
+          .select('*')
+          .limit(1)
+
         if (error) {
+          console.error('Echec test connexion Supabase (table utilisateurs):', error)
           setDbStatus('error')
           setDbError(error.message)
         } else {
+          console.log('Test connexion Supabase OK (table utilisateurs):', data)
           setDbStatus('connected')
         }
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
+        console.error('Erreur inattendue test connexion Supabase:', err)
         setDbStatus('error')
         setDbError(err instanceof Error ? err.message : 'Erreur inconnue')
-      })
+      }
+    }
+
+    void runConnectionTest()
   }, [])
 
   return (
