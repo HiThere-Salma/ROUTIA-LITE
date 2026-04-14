@@ -1,7 +1,7 @@
 import './App.css'
 import { useState } from 'react'
-import AgriculteurPage from './pages/AgriculteurPage'
-import TransporteurPage from './pages/TransporteurPage'
+import AgriculteurPage from './modules/agriculteur/pages/AgriculteurPage'
+import TransporteurPage from './modules/transporteur/pages/TransporteurPage'
 
 const navItems = [
   { label: 'Dashboard', icon: '▦' },
@@ -37,6 +37,8 @@ const transporteurs = [
 
 function App() {
   const [active, setActive] = useState('Dashboard')
+  const [isAgriModalOpen, setIsAgriModalOpen] = useState(false)
+  const [isTrModalOpen, setIsTrModalOpen] = useState(false)
 
   const searchPlaceholder =
     active === 'Gestion des agriculteurs' ? 'Rechercher un agriculteur, un CIN ou une ville...' :
@@ -83,10 +85,10 @@ function App() {
           </div>
           <div className="topbar-right">
             {active === 'Gestion des agriculteurs' && (
-              <button className="btn-add-agri">＋ Ajouter un agriculteur</button>
+              <button className="btn-add-agri" onClick={() => setIsAgriModalOpen(true)}>＋ Ajouter un agriculteur</button>
             )}
             {active === 'Gestion des transporteurs' && (
-              <button className="btn-add-agri">＋ Ajouter un transporteur</button>
+              <button className="btn-add-agri" onClick={() => setIsTrModalOpen(true)}>＋ Ajouter un transporteur</button>
             )}
             <button className="icon-btn">🔔</button>
             <button className="icon-btn">⚙️</button>
@@ -94,9 +96,9 @@ function App() {
         </header>
 
         {active === 'Gestion des agriculteurs' ? (
-          <AgriculteurPage />
+          <AgriculteurPage isModalOpen={isAgriModalOpen} onCloseModal={() => setIsAgriModalOpen(false)} />
         ) : active === 'Gestion des transporteurs' ? (
-          <TransporteurPage />
+          <TransporteurPage isModalOpen={isTrModalOpen} onCloseModal={() => setIsTrModalOpen(false)} />
         ) : (
         <div className="dashboard">
           <div className="dashboard-hero">
