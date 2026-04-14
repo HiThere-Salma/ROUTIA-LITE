@@ -40,6 +40,13 @@ const STATUT_MAP: Record<RouteData['statut'], { label: string; className: string
   annulee: { label: 'Annulée', className: 'rt-status--annulee' },
 }
 
+const ROUTE_TO_CMD_STATUT: Record<RouteData['statut'], string> = {
+  planifiee: 'en_attente',
+  en_cours: 'en_transport',
+  terminee: 'livree',
+  annulee: 'annulee',
+}
+
 export default function RoutePage() {
   const [routes, setRoutes] = useState<RouteData[]>([])
   const [loading, setLoading] = useState(true)
@@ -56,6 +63,7 @@ export default function RoutePage() {
   const [formHeureFin, setFormHeureFin] = useState('')
   const [formTransporteurId, setFormTransporteurId] = useState('')
   const [formCommandeIds, setFormCommandeIds] = useState<string[]>([])
+  const [formStatut, setFormStatut] = useState<RouteData['statut']>('planifiee')
   const [transporteurs, setTransporteurs] = useState<TransporteurOption[]>([])
   const [commandesOptions, setCommandesOptions] = useState<CommandeOption[]>([])
 
@@ -81,6 +89,7 @@ export default function RoutePage() {
     setFormHeureFin('')
     setFormTransporteurId('')
     setFormCommandeIds([])
+    setFormStatut('planifiee')
     setEditingRouteId(null)
   }
 
@@ -169,6 +178,15 @@ export default function RoutePage() {
             .in('id', formCommandeIds)
 
           if (cmdError) throw cmdError
+
+          // Update commandes statut based on route statut
+          const cmdStatut = ROUTE_TO_CMD_STATUT[formStatut]
+          const { error: statutErr } = await supabase
+            .from('commandes')
+            .update({ statut: cmdStatut })
+            .in('id', formCommandeIds)
+
+          if (statutErr) throw statutErr
         }
       } else {
         // --- CREATE new route ---
@@ -214,6 +232,7 @@ export default function RoutePage() {
     setFormHeureFin(route.heureFin)
     setFormTransporteurId(route.transporteur_id)
     setFormCommandeIds(route.commandeIds)
+    setFormStatut(route.statut)
     setShowModal(true)
   }
 
@@ -583,6 +602,25 @@ export default function RoutePage() {
                   <ChevronDown size={14} className="nv-select-chevron" />
                 </div>
               </div>
+
+              {/* Statut (edit mode only) */}
+              {editingRouteId && (
+                <div className="nv-field">
+                  <span className="nv-label">Statut</span>
+                  <div className="nv-select-wrap">
+                    <select
+                      className="nv-select"
+                      value={formStatut}
+                      onChange={(e) => setFormStatut(e.target.value as RouteData['statut'])}
+                    >
+                      {Object.entries(STATUT_MAP).map(([key, { label }]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} className="nv-select-chevron" />
+                  </div>
+                </div>
+              )}
 
               {/* Date / Heures row */}
               <div className="nv-row-3">
