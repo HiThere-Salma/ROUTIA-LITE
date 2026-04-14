@@ -5,7 +5,6 @@ import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Spr
 import AgriculteurPage from './pages/AgriculteurPage'
 import TransporteurPage from './pages/TransporteurPage'
 import RoutePage from './pages/RoutePage'
-import RoutesTestPage from './pages/RoutesTestPage'
 
 const navItems = [
   { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
@@ -13,7 +12,6 @@ const navItems = [
   { label: 'Gestion des agriculteurs', icon: <Sprout size={16} /> },
   { label: 'Gestion des routes', icon: <Map size={16} /> },
   { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
-  { label: 'MapQuest / Routes', icon: <Map size={16} /> },
 ]
 
 type Commande = {
@@ -163,7 +161,7 @@ function App() {
 
         {active === 'Gestion des agriculteurs' && <AgriculteurPage />}
         {active === 'Gestion des transporteurs' && <TransporteurPage />}
-        {active === 'MapQuest / Routes' && <RoutesTestPage />}
+
         {active === 'Dashboard' && (
           <div className="dashboard">
             <div className="dashboard-hero">
