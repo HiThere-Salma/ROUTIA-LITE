@@ -1538,3 +1538,465 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ===== Commandes Page ===== */
+
+.cmd-page {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+}
+
+.cmd-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cmd-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 16px;
+  flex: 1;
+}
+
+.cmd-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-head);
+  font-size: 14px;
+  flex: 1;
+}
+
+.cmd-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.cmd-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  gap: 8px;
+}
+
+.cmd-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmd-tab {
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.cmd-tab:hover {
+  color: var(--text);
+  background: var(--bg3);
+}
+
+.cmd-tab--active {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.cmd-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmd-table-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  max-height: 520px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.cmd-table-wrap::-webkit-scrollbar {
+  display: none;
+}
+
+.cmd-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg2);
+}
+
+.cmd-management-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cmd-management-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.cmd-management-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.cmd-management-table tbody tr {
+  cursor: pointer;
+}
+
+.cmd-management-table tbody tr:hover td {
+  background: var(--bg3);
+}
+
+.cmd-management-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.cmd-row-selected td {
+  background: #151f18;
+}
+
+.cmd-order-id {
+  color: var(--green);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cmd-cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cmd-cell-sub {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.cmd-nature-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: var(--bg3);
+}
+
+.cmd-status {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 10px;
+  display: inline-flex;
+  text-transform: uppercase;
+}
+
+.cmd-status--livree {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.cmd-status--encours {
+  background: #2a2010;
+  color: #fbbf24;
+}
+
+.cmd-status--attente {
+  background: #1a2a3a;
+  color: #60a5fa;
+}
+
+.cmd-status--default {
+  background: var(--bg3);
+  color: var(--text-muted);
+}
+
+.cmd-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.cmd-action-btn:hover {
+  color: var(--text);
+}
+
+.cmd-management-empty {
+  text-align: center;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  padding: 26px !important;
+}
+
+.cmd-feedback {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 26px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.cmd-feedback--error {
+  color: #fca5a5;
+  border-color: #7f1d1d;
+}
+
+.cmd-details-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.cmd-details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cmd-details-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cmd-details-id {
+  font-family: var(--font-mono);
+  color: var(--green);
+  font-size: 12px;
+}
+
+.cmd-details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cmd-details-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.cmd-details-key {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.cmd-details-value {
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.cmd-details-empty {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Modal */
+.cmd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+  backdrop-filter: blur(2px);
+}
+
+.cmd-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 780px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.cmd-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.cmd-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cmd-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.cmd-modal-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cmd-modal-close {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s;
+}
+
+.cmd-modal-close:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.cmd-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cmd-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cmd-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.cmd-modal-field-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.cmd-modal-field-value {
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-word;
+}
+
+@media (max-width: 600px) {
+  .cmd-modal-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cmd-modal {
+    max-height: 92vh;
+  }
+}
+
+@media (max-width: 920px) {
+  .cmd-page {
+    padding: 16px;
+  }
+
+  .cmd-toolbar-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cmd-filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cmd-tabs {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .cmd-table-wrap {
+    overflow-x: auto;
+  }
+
+  .cmd-management-table {
+    min-width: 980px;
+  }
+
+  .cmd-details-grid {
+    grid-template-columns: 1fr;
+  }
+}

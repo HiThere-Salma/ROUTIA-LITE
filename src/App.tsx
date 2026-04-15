@@ -6,6 +6,7 @@ import AgriculteurPage from './pages/AgriculteurPage'
 import TransporteurPage from './pages/TransporteurPage'
 import RoutePage from './pages/RoutePage'
 import RoutesTestPage from './pages/RoutesTestPage'
+import CommandesPage from './commandes/Pages/CommandesPage'
 
 const navItems = [
   { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
@@ -307,13 +308,7 @@ function App() {
           </div>
         )}
         {active === 'Gestion des routes' && <RoutePage />}
-        {active === 'Gestion des commandes' && (
-          <div className="placeholder-page">
-            <div className="placeholder-icon"><LayoutDashboard size={36} color="var(--border)" /></div>
-            <p className="placeholder-title">{active}</p>
-            <p className="placeholder-sub">Module en cours de développement</p>
-          </div>
-        )}
+        {active === 'Gestion des commandes' && <CommandesPage />}
       </main>
     </div>
   )
