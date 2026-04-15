@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, Truck, X, ChevronDown, ChevronLeft, ChevronRight, Check, Navigation, AlertTriangle, Loader, MapPin, Calendar, Clock, Route, Pencil } from 'lucide-react'
+import { Search, Truck, X, ChevronDown, ChevronLeft, ChevronRight, Check, Navigation, AlertTriangle, Loader, MapPin, Calendar, Clock, Route, Pencil, Trash2 } from 'lucide-react'
 import { getSupabaseClient } from '../lib/supabase/supabase.client'
 
 const MAPQUEST_KEY = import.meta.env.VITE_MAPQUEST_KEY
@@ -76,6 +76,10 @@ export default function RoutePage() {
   const calRef = useRef<HTMLDivElement>(null)
   const timeStartRef = useRef<HTMLDivElement>(null)
   const timeEndRef = useRef<HTMLDivElement>(null)
+
+  // Delete state
+  const [deleteRouteId, setDeleteRouteId] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Navigation (MapQuest) state
   const [navModal, setNavModal] = useState<NavModal>({ type: 'none' })
@@ -222,6 +226,32 @@ export default function RoutePage() {
       console.error(editingRouteId ? 'Erreur modification route:' : 'Erreur création route:', err)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (deleteRouteId == null) return
+    setDeleting(true)
+    try {
+      const supabase = getSupabaseClient()
+      // Unassign commandes from this route
+      await supabase
+        .from('commandes')
+        .update({ route_id: null })
+        .eq('route_id', deleteRouteId)
+      // Delete the route
+      const { error } = await supabase
+        .from('routes')
+        .delete()
+        .eq('id', deleteRouteId)
+      if (error) throw error
+      setDeleteRouteId(null)
+      setLoading(true)
+      fetchRoutes()
+    } catch (err) {
+      console.error('Erreur suppression route:', err)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -545,6 +575,13 @@ export default function RoutePage() {
                         >
                           {loadingRoute === r.id ? <Loader size={14} className="nv-spin" /> : <Navigation size={14} />}
                         </button>
+                        <button
+                          className="rt-nav-btn rt-nav-btn--danger"
+                          title="Supprimer"
+                          onClick={() => setDeleteRouteId(r.id)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -843,6 +880,38 @@ export default function RoutePage() {
                 <span>{submitting ? 'Enregistrement…' : editingRouteId ? 'Enregistrer les modifications' : 'Générer & Optimiser'}</span>
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmation suppression */}
+      {deleteRouteId != null && (
+        <div className="rt-modal-overlay" onClick={() => !deleting && setDeleteRouteId(null)}>
+          <div className="rt-modal" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="rt-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <AlertTriangle size={18} color="#f87171" />
+                <h2 className="rt-modal-title">Supprimer la route</h2>
+              </div>
+              <button className="rt-modal-close" onClick={() => setDeleteRouteId(null)} disabled={deleting}><X size={18} /></button>
+            </div>
+            <div className="rt-modal-form">
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Êtes-vous sûr de vouloir supprimer la route <strong>#{String(deleteRouteId).slice(0, 8)}</strong> ? Les commandes associées seront désassignées.
+              </p>
+              <div className="rt-modal-actions">
+                <button type="button" className="rt-btn-cancel" onClick={() => setDeleteRouteId(null)} disabled={deleting}>Annuler</button>
+                <button
+                  type="button"
+                  className="rt-btn-submit"
+                  style={{ background: '#ef4444' }}
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? <Loader size={14} className="nv-spin" /> : 'Supprimer'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
