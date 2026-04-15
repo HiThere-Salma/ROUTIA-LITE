@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { Map, Loader, ExternalLink, X, AlertTriangle, Navigation } from 'lucide-react'
+import { Map, Loader, ExternalLink, X, AlertTriangle, Navigation, Phone, Mail } from 'lucide-react'
 
 const MAPQUEST_KEY = import.meta.env.VITE_MAPQUEST_KEY
 
@@ -290,7 +290,7 @@ export default function RoutesTestPage() {
                 <th>Heure fin</th>
                 <th>Distance</th>
                 <th>Commandes</th>
-                <th>Tracking token</th>
+                <th>Envoyer</th>
                 <th>Navigation</th>
               </tr>
             </thead>
@@ -325,9 +325,20 @@ export default function RoutesTestPage() {
                       )}
                     </td>
                     <td>
-                      <span className="agri-mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {r.tracking_token?.slice(0, 16)}…
-                      </span>
+                      <button
+                        className="agri-btn-outline"
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '5px 12px', fontSize: 12, cursor: 'not-allowed',
+                          background: 'var(--green)', color: '#000', borderColor: 'var(--green)',
+                          opacity: 0.85,
+                        }}
+                        disabled
+                      >
+                        <Phone size={12} />
+                        <Mail size={12} />
+                        <span>Envoyer l'itinéraire</span>
+                      </button>
                     </td>
                     <td>
                       <button
