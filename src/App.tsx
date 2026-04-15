@@ -1,10 +1,10 @@
 import './App.css'
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Search, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList } from 'lucide-react'
+import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList } from 'lucide-react'
 import AgriculteurPage from './pages/AgriculteurPage'
 import TransporteurPage from './pages/TransporteurPage'
-import RoutesTestPage from './pages/RoutesTestPage'
+import RoutePage from './pages/RoutePage'
 
 const navItems = [
   { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
@@ -12,7 +12,6 @@ const navItems = [
   { label: 'Gestion des agriculteurs', icon: <Sprout size={16} /> },
   { label: 'Gestion des routes', icon: <Map size={16} /> },
   { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
-  { label: 'MapQuest / Routes', icon: <Map size={16} /> },
 ]
 
 type Commande = {
@@ -98,8 +97,8 @@ function App() {
       const enCours = allCommandes?.filter(c => c.statut === 'en_attente' || c.statut === 'assignee' || c.statut === 'recuperee' || c.statut === 'en_transport').length ?? 0
       const livres = allCommandes?.filter(c => c.statut === 'livree').length ?? 0
       setStats({ totalCommandes: total, commandesEnCours: enCours, transporteursActifs: transporteurs?.length ?? 0, livraisonsCompletes: livres })
-      setCommandes((recentCommandes as any) ?? [])
-      setRoutes((recentRoutes as any) ?? [])
+      setCommandes((recentCommandes as unknown as Commande[]) ?? [])
+      setRoutes((recentRoutes as unknown as Route[]) ?? [])
     } catch (err) {
       console.error('Erreur Supabase:', err)
     } finally {
@@ -162,7 +161,7 @@ function App() {
 
         {active === 'Gestion des agriculteurs' && <AgriculteurPage />}
         {active === 'Gestion des transporteurs' && <TransporteurPage />}
-        {active === 'MapQuest / Routes' && <RoutesTestPage />}
+
         {active === 'Dashboard' && (
           <div className="dashboard">
             <div className="dashboard-hero">
@@ -273,7 +272,7 @@ function App() {
                   <span>Activité Récente</span>
                 </div>
                 <div className="activite-list">
-                  {commandes.slice(0, 3).map((c: any, i: number) => (
+                  {commandes.slice(0, 3).map((c: Commande, i: number) => (
                     <div key={i} className="activite-item">
                       <div className="activite-dot-wrap">
                         <span className={`activite-dot dot--${statusType(c.statut)}`} />
@@ -305,7 +304,8 @@ function App() {
             </div>
           </div>
         )}
-        {(active === 'Gestion des commandes' || active === 'Gestion des routes') && (
+        {active === 'Gestion des routes' && <RoutePage />}
+        {active === 'Gestion des commandes' && (
           <div className="placeholder-page">
             <div className="placeholder-icon"><LayoutDashboard size={36} color="var(--border)" /></div>
             <p className="placeholder-title">{active}</p>
