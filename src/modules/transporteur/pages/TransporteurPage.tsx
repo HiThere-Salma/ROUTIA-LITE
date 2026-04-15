@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import { useTransporteurs } from '../hooks/useTransporteurs'
+import { useDeleteTransporteur } from '../hooks/useDeleteTransporteur'
 import { TransporteurTable } from '../components/TransporteurTable'
 import { TransporteurFormModal } from '../components/TransporteurFormModal'
+import { ConfirmDeleteModal } from '../../../components/ConfirmDeleteModal'
 import { PAGE_SIZE } from '../constants/transporteur.constants'
 import { formatLastUpdated } from '../utils/transporteur.utils'
+import type { Transporteur } from '../types/transporteur.types'
 
 export default function TransporteurPage({ isModalOpen, onCloseModal }: { isModalOpen: boolean; onCloseModal: () => void }) {
   const [page, setPage] = useState(1)
   const { transporteurs, total, isLoading, errorMessage, lastUpdated, refresh } = useTransporteurs(page)
+  const [editItem, setEditItem] = useState<Transporteur | null>(null)
+  const [deleteItem, setDeleteItem] = useState<Transporteur | null>(null)
+
+  const { handleDelete, isDeleting, deleteError } = useDeleteTransporteur(() => {
+    setDeleteItem(null)
+    refresh()
+  })
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const pageStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
@@ -24,7 +34,12 @@ export default function TransporteurPage({ isModalOpen, onCloseModal }: { isModa
 
       <div className="tr-table-wrap">
         {errorMessage && <p className="agri-error">{errorMessage}</p>}
-        <TransporteurTable transporteurs={transporteurs} isLoading={isLoading} />
+        <TransporteurTable
+          transporteurs={transporteurs}
+          isLoading={isLoading}
+          onEdit={(tr) => setEditItem(tr)}
+          onDelete={(tr) => setDeleteItem(tr)}
+        />
 
         <div className="tr-footer">
           <div className="tr-footer-left">
@@ -53,9 +68,19 @@ export default function TransporteurPage({ isModalOpen, onCloseModal }: { isModa
       </div>
 
       <TransporteurFormModal
-        isOpen={isModalOpen}
-        onClose={onCloseModal}
+        isOpen={isModalOpen || !!editItem}
+        onClose={() => { onCloseModal(); setEditItem(null) }}
         onCreated={() => { setPage(1); refresh() }}
+        editItem={editItem}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteItem}
+        name={deleteItem ? `${deleteItem.nom} ${deleteItem.prenom}` : ''}
+        isDeleting={isDeleting}
+        deleteError={deleteError}
+        onConfirm={() => deleteItem && handleDelete(deleteItem.id)}
+        onCancel={() => setDeleteItem(null)}
       />
     </div>
   )

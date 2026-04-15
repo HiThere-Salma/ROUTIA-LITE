@@ -4,9 +4,11 @@ import { AgriculteurTableRow } from './AgriculteurTableRow'
 type Props = {
   agriculteurs: Agriculteur[]
   isLoading: boolean
+  onEdit: (agriculteur: Agriculteur) => void
+  onDelete: (agriculteur: Agriculteur) => void
 }
 
-export function AgriculteurTable({ agriculteurs, isLoading }: Props) {
+export function AgriculteurTable({ agriculteurs, isLoading, onEdit, onDelete }: Props) {
   return (
     <table className="agri-table">
       <thead>
@@ -29,7 +31,7 @@ export function AgriculteurTable({ agriculteurs, isLoading }: Props) {
             <td colSpan={6} className="agri-table-empty">Aucun agriculteur trouvé.</td>
           </tr>
         ) : agriculteurs.map((agriculteur) => (
-          <AgriculteurTableRow key={agriculteur.id} agriculteur={agriculteur} />
+          <AgriculteurTableRow key={agriculteur.id} agriculteur={agriculteur} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </tbody>
     </table>

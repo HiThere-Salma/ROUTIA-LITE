@@ -957,6 +957,29 @@ body {
 .modal-btn-submit:disabled { opacity: 0.5; cursor: default; }
 .modal-btn-submit--full { width: 100%; justify-content: center; padding: 12px 20px; font-size: 14px; }
 
+/* ===== Confirm delete modal ===== */
+.modal-panel--sm { max-width: 420px; }
+
+.confirm-delete-body { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.confirm-delete-text { color: var(--text); font-size: 14px; line-height: 1.6; }
+
+.confirm-delete-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+.btn-delete-confirm {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-delete-confirm:hover:not(:disabled) { opacity: 0.85; }
+.btn-delete-confirm:disabled { opacity: 0.5; cursor: default; }
+
 .modal-field--full { grid-column: 1 / -1; }
 
 /* ===== tr-ville (transporteur) ===== */

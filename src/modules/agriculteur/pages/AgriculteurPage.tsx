@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import { useAgriculteurs } from '../hooks/useAgriculteurs'
+import { useDeleteAgriculteur } from '../hooks/useDeleteAgriculteur'
 import { AgriculteurTable } from '../components/AgriculteurTable'
 import { AgriculteurFormModal } from '../components/AgriculteurFormModal'
+import { ConfirmDeleteModal } from '../../../components/ConfirmDeleteModal'
 import { PAGE_SIZE } from '../constants/agriculteur.constants'
 import { formatLastUpdated } from '../utils/agriculteur.utils'
+import type { Agriculteur } from '../types/agriculteur.types'
 
 export default function AgriculteurPage({ isModalOpen, onCloseModal }: { isModalOpen: boolean; onCloseModal: () => void }) {
   const [page, setPage] = useState(1)
   const { agriculteurs, total, isLoading, errorMessage, lastUpdated, refresh } = useAgriculteurs(page)
+  const [editItem, setEditItem] = useState<Agriculteur | null>(null)
+  const [deleteItem, setDeleteItem] = useState<Agriculteur | null>(null)
+
+  const { handleDelete, isDeleting, deleteError } = useDeleteAgriculteur(() => {
+    setDeleteItem(null)
+    refresh()
+  })
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const pageStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
@@ -30,7 +40,12 @@ export default function AgriculteurPage({ isModalOpen, onCloseModal }: { isModal
 
       <div className="agri-table-wrap">
         {errorMessage && <p className="agri-error">{errorMessage}</p>}
-        <AgriculteurTable agriculteurs={agriculteurs} isLoading={isLoading} />
+        <AgriculteurTable
+          agriculteurs={agriculteurs}
+          isLoading={isLoading}
+          onEdit={(ag) => setEditItem(ag)}
+          onDelete={(ag) => setDeleteItem(ag)}
+        />
         <div className="agri-pagination">
           <span className="agri-pag-info">
             Affichage de {pageStart}–{pageEnd} sur {total.toLocaleString('fr-FR')}
@@ -46,9 +61,19 @@ export default function AgriculteurPage({ isModalOpen, onCloseModal }: { isModal
       </div>
 
       <AgriculteurFormModal
-        isOpen={isModalOpen}
-        onClose={onCloseModal}
+        isOpen={isModalOpen || !!editItem}
+        onClose={() => { onCloseModal(); setEditItem(null) }}
         onCreated={() => { setPage(1); refresh() }}
+        editItem={editItem}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteItem}
+        name={deleteItem ? `${deleteItem.nom} ${deleteItem.prenom}` : ''}
+        isDeleting={isDeleting}
+        deleteError={deleteError}
+        onConfirm={() => deleteItem && handleDelete(deleteItem.id)}
+        onCancel={() => setDeleteItem(null)}
       />
     </div>
   )

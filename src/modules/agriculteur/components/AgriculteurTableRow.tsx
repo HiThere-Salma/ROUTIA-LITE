@@ -4,9 +4,11 @@ import { getAdresse, getAgriId } from '../utils/agriculteur.utils'
 
 type Props = {
   agriculteur: Agriculteur
+  onEdit: (agriculteur: Agriculteur) => void
+  onDelete: (agriculteur: Agriculteur) => void
 }
 
-export function AgriculteurTableRow({ agriculteur }: Props) {
+export function AgriculteurTableRow({ agriculteur, onEdit, onDelete }: Props) {
   const initials = `${agriculteur.nom[0]}${agriculteur.prenom[0]}`
   const colorIndex = (agriculteur.nom.charCodeAt(0) + agriculteur.nom.charCodeAt(agriculteur.nom.length - 1)) % AVATAR_COLORS.length
   const palette = AVATAR_COLORS[colorIndex]
@@ -35,8 +37,8 @@ export function AgriculteurTableRow({ agriculteur }: Props) {
       </td>
       <td>
         <div className="agri-actions">
-          <button className="agri-action-btn" title="Modifier">✎</button>
-          <button className="agri-action-btn agri-action-btn--del" title="Supprimer">✕</button>
+          <button className="agri-action-btn" title="Modifier" onClick={() => onEdit(agriculteur)}>✎</button>
+          <button className="agri-action-btn agri-action-btn--del" title="Supprimer" onClick={() => onDelete(agriculteur)}>✕</button>
         </div>
       </td>
     </tr>

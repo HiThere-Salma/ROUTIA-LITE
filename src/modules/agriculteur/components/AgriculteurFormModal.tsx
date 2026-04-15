@@ -1,24 +1,62 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { agriculteurFormSchema, type AgriculteurFormValues } from '../types/agriculteurForm.types'
 import { useCreateAgriculteur } from '../hooks/useCreateAgriculteur'
+import { useUpdateAgriculteur } from '../hooks/useUpdateAgriculteur'
+import type { Agriculteur } from '../types/agriculteur.types'
 
 type Props = {
   isOpen: boolean
   onClose: () => void
   onCreated: () => void
+  editItem?: Agriculteur | null
 }
 
-export function AgriculteurFormModal({ isOpen, onClose, onCreated }: Props) {
+export function AgriculteurFormModal({ isOpen, onClose, onCreated, editItem }: Props) {
+  const isEdit = !!editItem
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<AgriculteurFormValues>({
     resolver: zodResolver(agriculteurFormSchema),
   })
 
-  const { handleCreate, isSubmitting, submitError } = useCreateAgriculteur(() => {
+  useEffect(() => {
+    if (isOpen && editItem) {
+      reset({
+        nom: editItem.nom,
+        prenom: editItem.prenom,
+        cin: editItem.cin ?? '',
+        telephone: editItem.telephone ?? '',
+        email: editItem.email,
+        adresse: editItem.rue ?? '',
+      })
+    } else if (isOpen && !editItem) {
+      reset({ nom: '', prenom: '', cin: '', telephone: '', email: '', adresse: '' })
+    }
+  }, [isOpen, editItem, reset])
+
+  const { handleCreate, isSubmitting: isCreating, submitError: createError } = useCreateAgriculteur(() => {
     reset()
     onCreated()
     onClose()
   })
+
+  const { handleUpdate, isSubmitting: isUpdating, submitError: updateError } = useUpdateAgriculteur(() => {
+    reset()
+    onCreated()
+    onClose()
+  })
+
+  const isSubmitting = isCreating || isUpdating
+  const submitError = createError ?? updateError
+
+  function onSubmit(values: AgriculteurFormValues) {
+    if (isEdit && editItem) {
+      handleUpdate(editItem.id, values)
+    } else {
+      handleCreate(values)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -26,11 +64,13 @@ export function AgriculteurFormModal({ isOpen, onClose, onCreated }: Props) {
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="agri-form-title">
       <div className="modal-panel">
         <div className="modal-header">
-          <h2 className="modal-title" id="agri-form-title">Ajouter un agriculteur</h2>
+          <h2 className="modal-title" id="agri-form-title">
+            {isEdit ? 'Modifier un agriculteur' : 'Ajouter un agriculteur'}
+          </h2>
           <button className="modal-close" onClick={onClose} aria-label="Fermer">✕</button>
         </div>
 
-        <form className="modal-form" onSubmit={handleSubmit(handleCreate)} noValidate>
+        <form className="modal-form" onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="modal-form-grid">
             <div className="modal-field">
               <label htmlFor="ag-nom" className="modal-label">Nom</label>

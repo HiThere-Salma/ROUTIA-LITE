@@ -44,3 +44,24 @@ export async function createTransporteur(values: TransporteurFormValues): Promis
   if (error) throw error
   return data
 }
+
+export async function updateTransporteur(id: string, values: TransporteurFormValues): Promise<Transporteur> {
+  const supabase = getSupabaseClient()
+  const { adresse, ...rest } = values
+
+  const { data, error } = await supabase
+    .from('utilisateurs')
+    .update({ ...rest, rue: adresse })
+    .eq('id', id)
+    .select('id, prenom, nom, email, cin, telephone, numero_civique, rue, ville, numero_permis, permis_valide, assurance_valide, visite_valide, date_creation')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteTransporteur(id: string): Promise<void> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase.from('utilisateurs').delete().eq('id', id)
+  if (error) throw error
+}

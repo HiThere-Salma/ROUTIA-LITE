@@ -1,25 +1,67 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { transporteurFormSchema, type TransporteurFormValues } from '../types/transporteurForm.types'
 import { useCreateTransporteur } from '../hooks/useCreateTransporteur'
+import { useUpdateTransporteur } from '../hooks/useUpdateTransporteur'
+import type { Transporteur } from '../types/transporteur.types'
 
 type Props = {
   isOpen: boolean
   onClose: () => void
   onCreated: () => void
+  editItem?: Transporteur | null
 }
 
-export function TransporteurFormModal({ isOpen, onClose, onCreated }: Props) {
+export function TransporteurFormModal({ isOpen, onClose, onCreated, editItem }: Props) {
+  const isEdit = !!editItem
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<TransporteurFormValues>({
     resolver: zodResolver(transporteurFormSchema),
     defaultValues: { permis_valide: false, assurance_valide: false, visite_valide: false },
   })
 
-  const { handleCreate, isSubmitting, submitError } = useCreateTransporteur(() => {
+  useEffect(() => {
+    if (isOpen && editItem) {
+      reset({
+        nom: editItem.nom,
+        prenom: editItem.prenom,
+        cin: editItem.cin ?? '',
+        telephone: editItem.telephone ?? '',
+        email: editItem.email,
+        adresse: editItem.rue ?? '',
+        numero_permis: editItem.numero_permis ?? '',
+        permis_valide: editItem.permis_valide ?? false,
+        assurance_valide: editItem.assurance_valide ?? false,
+        visite_valide: editItem.visite_valide ?? false,
+      })
+    } else if (isOpen && !editItem) {
+      reset({ nom: '', prenom: '', cin: '', telephone: '', email: '', adresse: '', numero_permis: '', permis_valide: false, assurance_valide: false, visite_valide: false })
+    }
+  }, [isOpen, editItem, reset])
+
+  const { handleCreate, isSubmitting: isCreating, submitError: createError } = useCreateTransporteur(() => {
     reset()
     onCreated()
     onClose()
   })
+
+  const { handleUpdate, isSubmitting: isUpdating, submitError: updateError } = useUpdateTransporteur(() => {
+    reset()
+    onCreated()
+    onClose()
+  })
+
+  const isSubmitting = isCreating || isUpdating
+  const submitError = createError ?? updateError
+
+  function onSubmit(values: TransporteurFormValues) {
+    if (isEdit && editItem) {
+      handleUpdate(editItem.id, values)
+    } else {
+      handleCreate(values)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -27,11 +69,13 @@ export function TransporteurFormModal({ isOpen, onClose, onCreated }: Props) {
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tr-form-title">
       <div className="modal-panel">
         <div className="modal-header">
-          <h2 className="modal-title" id="tr-form-title">Ajouter un transporteur</h2>
+          <h2 className="modal-title" id="tr-form-title">
+            {isEdit ? 'Modifier un transporteur' : 'Ajouter un transporteur'}
+          </h2>
           <button className="modal-close" onClick={onClose} aria-label="Fermer">✕</button>
         </div>
 
-        <form className="modal-form" onSubmit={handleSubmit(handleCreate)} noValidate>
+        <form className="modal-form" onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="modal-form-grid">
             <div className="modal-field">
               <label htmlFor="tr-nom" className="modal-label">Nom</label>

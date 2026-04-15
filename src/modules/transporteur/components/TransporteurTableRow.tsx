@@ -5,9 +5,11 @@ import { DocBadge } from './DocBadge'
 
 type Props = {
   transporteur: Transporteur
+  onEdit: (transporteur: Transporteur) => void
+  onDelete: (transporteur: Transporteur) => void
 }
 
-export function TransporteurTableRow({ transporteur }: Props) {
+export function TransporteurTableRow({ transporteur, onEdit, onDelete }: Props) {
   const initials = `${transporteur.nom[0]}${transporteur.prenom[0]}`
   const colorIndex = (transporteur.nom.charCodeAt(0) + transporteur.nom.charCodeAt(transporteur.nom.length - 1)) % AVATAR_COLORS.length
   const palette = AVATAR_COLORS[colorIndex]
@@ -47,8 +49,8 @@ export function TransporteurTableRow({ transporteur }: Props) {
       </td>
       <td>
         <div className="agri-actions">
-          <button className="agri-action-btn" title="Modifier">✎</button>
-          <button className="agri-action-btn agri-action-btn--del" title="Supprimer">🗑</button>
+          <button className="agri-action-btn" title="Modifier" onClick={() => onEdit(transporteur)}>✎</button>
+          <button className="agri-action-btn agri-action-btn--del" title="Supprimer" onClick={() => onDelete(transporteur)}>✕</button>
         </div>
       </td>
     </tr>

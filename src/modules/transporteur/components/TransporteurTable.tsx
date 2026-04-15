@@ -4,9 +4,11 @@ import { TransporteurTableRow } from './TransporteurTableRow'
 type Props = {
   transporteurs: Transporteur[]
   isLoading: boolean
+  onEdit: (transporteur: Transporteur) => void
+  onDelete: (transporteur: Transporteur) => void
 }
 
-export function TransporteurTable({ transporteurs, isLoading }: Props) {
+export function TransporteurTable({ transporteurs, isLoading, onEdit, onDelete }: Props) {
   return (
     <table className="tr-table">
       <thead>
@@ -29,7 +31,7 @@ export function TransporteurTable({ transporteurs, isLoading }: Props) {
             <td colSpan={6} className="agri-table-empty">Aucun transporteur trouvé.</td>
           </tr>
         ) : transporteurs.map((transporteur) => (
-          <TransporteurTableRow key={transporteur.id} transporteur={transporteur} />
+          <TransporteurTableRow key={transporteur.id} transporteur={transporteur} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </tbody>
     </table>

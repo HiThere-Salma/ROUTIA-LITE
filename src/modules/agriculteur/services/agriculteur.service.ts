@@ -44,3 +44,24 @@ export async function createAgriculteur(values: AgriculteurFormValues): Promise<
   if (error) throw error
   return data
 }
+
+export async function updateAgriculteur(id: string, values: AgriculteurFormValues): Promise<Agriculteur> {
+  const supabase = getSupabaseClient()
+  const { adresse, ...rest } = values
+
+  const { data, error } = await supabase
+    .from('utilisateurs')
+    .update({ ...rest, rue: adresse })
+    .eq('id', id)
+    .select('id, prenom, nom, email, role, cin, telephone, numero_civique, rue, ville, code_postal, quartier, date_creation')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteAgriculteur(id: string): Promise<void> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase.from('utilisateurs').delete().eq('id', id)
+  if (error) throw error
+}
