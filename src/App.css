@@ -17,8 +17,8 @@
   --green-dim: #14281e;
   --green-mid: #1e4a30;
   --text: #e0e0e0;
-  --text-muted: #707070;
-  --text-dim: #404040;
+  --text-muted: #a0a0a0;
+  --text-dim: #6a6a6a;
   --font-head: 'Syne', sans-serif;
   --font-mono: 'DM Mono', monospace;
 }
@@ -1051,7 +1051,7 @@ body {
   text-align: left;
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-dim);
+  color: #b0b0b0;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--border);
@@ -1090,7 +1090,7 @@ body {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: #d0d0d0;
   background: var(--bg3);
   padding: 4px 8px;
   border-radius: 6px;
@@ -1119,7 +1119,7 @@ body {
 /* Date cell */
 .rt-date {
   font-size: 13px;
-  color: var(--text-muted);
+  color: #d0d0d0;
 }
 
 /* Horaires cell */
@@ -1129,16 +1129,16 @@ body {
   gap: 5px;
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--text-muted);
+  color: #d0d0d0;
 }
 
 .rt-horaires-icon {
-  color: var(--text-dim);
+  color: #b0b0b0;
   flex-shrink: 0;
 }
 
 .rt-horaires-sep {
-  color: var(--text-dim);
+  color: #b0b0b0;
   margin: 0 1px;
 }
 
@@ -1230,6 +1230,12 @@ body {
 .rt-nav-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.rt-nav-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
 }
 
 /* Empty state */
