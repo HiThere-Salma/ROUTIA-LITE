@@ -1,10 +1,11 @@
 import './App.css'
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList } from 'lucide-react'
+import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList, LogOut } from 'lucide-react'
 import AgriculteurPage from './pages/AgriculteurPage'
 import TransporteurPage from './pages/TransporteurPage'
 import RoutePage from './pages/RoutePage'
+import LoginPage from './pages/LoginPage'
 
 const navItems = [
   { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
@@ -13,6 +14,16 @@ const navItems = [
   { label: 'Gestion des routes', icon: <Map size={16} /> },
   { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
 ]
+
+type Admin = {
+  id: string
+  email: string
+  nom: string | null
+  prenom: string | null
+  numero_tel: string | null
+  adresse: string | null
+  created_at: string
+}
 
 type Commande = {
   id: string
@@ -64,6 +75,10 @@ function statusLabel(statut: string) {
 }
 
 function App() {
+  const [admin, setAdmin] = useState<Admin | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [loginError, setLoginError] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
   const [active, setActive] = useState('Dashboard')
   const [commandes, setCommandes] = useState<Commande[]>([])
   const [routes, setRoutes] = useState<Route[]>([])
@@ -75,9 +90,61 @@ function App() {
   })
   const [loading, setLoading] = useState(true)
 
+  // Restore session on mount
   useEffect(() => {
-    fetchDashboardData()
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user?.email) {
+        const { data } = await supabase
+          .from('admin')
+          .select('*')
+          .eq('email', session.user.email)
+          .single()
+        if (data) setAdmin(data as Admin)
+      }
+      setAuthLoading(false)
+    })
   }, [])
+
+  useEffect(() => {
+    if (admin) fetchDashboardData()
+  }, [admin])
+
+  async function handleLogin(email: string, password: string) {
+    setLoginError('')
+    setLoginLoading(true)
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (authError) {
+        setLoginError('Email ou mot de passe incorrect.')
+        setLoginLoading(false)
+        return
+      }
+      const { data: adminData, error: adminError } = await supabase
+        .from('admin')
+        .select('*')
+        .eq('email', authData.user.email)
+        .single()
+      if (adminError || !adminData) {
+        await supabase.auth.signOut()
+        setLoginError("Cet utilisateur n'a pas les droits administrateur.")
+        setLoginLoading(false)
+        return
+      }
+      setAdmin(adminData as Admin)
+    } catch {
+      setLoginError('Une erreur est survenue. Veuillez réessayer.')
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    setAdmin(null)
+  }
 
   async function fetchDashboardData() {
     setLoading(true)
@@ -113,6 +180,18 @@ function App() {
     { label: 'Livraisons complétées', value: stats.livraisonsCompletes, badge: '', badgeType: 'success', icon: <CircleCheckBig size={22} color="var(--green)" /> },
   ]
 
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
+        <Loader size={32} color="var(--green)" className="login-spinner" />
+      </div>
+    )
+  }
+
+  if (!admin) {
+    return <LoginPage onSubmit={handleLogin} error={loginError} loading={loginLoading} />
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -136,11 +215,14 @@ function App() {
 
         <div className="sidebar-footer">
           <div className="user-chip">
-            <div className="user-avatar">A</div>
+            <div className="user-avatar">{admin.prenom?.[0] ?? 'A'}</div>
             <div>
-              <div className="user-name">Admin User</div>
-              <div className="user-role">Logistics Ops</div>
+              <div className="user-name">{admin.prenom} {admin.nom}</div>
+              <div className="user-role">{admin.email}</div>
             </div>
+            <button className="icon-btn logout-btn" onClick={handleLogout} title="Déconnexion">
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
       </aside>
