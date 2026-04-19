@@ -3,6 +3,7 @@ import { Search, Truck, X, ChevronDown, ChevronLeft, ChevronRight, Check, Naviga
 import { getSupabaseClient } from '../lib/supabase/supabase.client'
 
 const MAPQUEST_KEY = import.meta.env.VITE_MAPQUEST_KEY
+const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY
 
 type RouteData = {
   id: number
@@ -17,7 +18,7 @@ type RouteData = {
   statut: 'en_cours' | 'terminee' | 'planifiee' | 'annulee'
 }
 
-type TransporteurOption = { id: string; nom: string; prenom: string }
+type TransporteurOption = { id: string; nom: string; prenom: string; email: string; telephone: string | null }
 type CommandeOption = {
   id: string
   produit: string
@@ -54,7 +55,6 @@ export default function RoutePage() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
 
-  // Modal state
   const [showModal, setShowModal] = useState(false)
   const [editingRouteId, setEditingRouteId] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -67,7 +67,6 @@ export default function RoutePage() {
   const [transporteurs, setTransporteurs] = useState<TransporteurOption[]>([])
   const [commandesOptions, setCommandesOptions] = useState<CommandeOption[]>([])
 
-  // Picker states
   const [showCalendar, setShowCalendar] = useState(false)
   const [calMonth, setCalMonth] = useState(new Date().getMonth())
   const [calYear, setCalYear] = useState(new Date().getFullYear())
@@ -77,7 +76,6 @@ export default function RoutePage() {
   const timeStartRef = useRef<HTMLDivElement>(null)
   const timeEndRef = useRef<HTMLDivElement>(null)
 
-  // Navigation (MapQuest) state
   const [navModal, setNavModal] = useState<NavModal>({ type: 'none' })
   const [navInput, setNavInput] = useState('')
   const [loadingRoute, setLoadingRoute] = useState<number | null>(null)
@@ -93,19 +91,17 @@ export default function RoutePage() {
     setEditingRouteId(null)
   }
 
-  // Fetch transporteurs & commandes when modal opens
   useEffect(() => {
     if (!showModal) return
     const supabase = getSupabaseClient()
 
     supabase
       .from('utilisateurs')
-      .select('id, nom, prenom')
+      .select('id, nom, prenom, email, telephone')
       .eq('role', 'transporteur')
       .order('nom')
       .then(({ data }) => setTransporteurs((data as TransporteurOption[]) ?? []))
 
-    // Fetch commandes: unassigned + those assigned to the route being edited
     const fetchCommandes = async () => {
       const { data: unassigned } = await supabase
         .from('commandes')
@@ -140,6 +136,69 @@ export default function RoutePage() {
     fetchCommandes()
   }, [showModal, editingRouteId])
 
+  async function buildMapsLink(commandeIds: string[]): Promise<string> {
+    const supabase = getSupabaseClient()
+    const { data: cmds } = await supabase
+      .from('commandes')
+      .select('adresse_collecte, adresse_livraison')
+      .in('id', commandeIds)
+
+    const commandes = cmds ?? []
+    if (commandes.length === 0) return ''
+
+    const allAddresses = [
+      ...commandes.map((c: Record<string, string>) => c.adresse_collecte),
+      ...commandes.map((c: Record<string, string>) => c.adresse_livraison),
+    ]
+
+    try {
+      const response = await fetch(
+        `https://www.mapquestapi.com/directions/v2/optimizedroute?key=${MAPQUEST_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            locations: allAddresses.map(a => ({ street: a })),
+            options: { routeType: 'fastest' },
+          }),
+        }
+      )
+      const data = await response.json()
+      if (data.info?.statuscode === 0) {
+        const orderedIndexes: number[] = data.route?.locationSequence ?? []
+        const ordered = orderedIndexes.map((i: number) => allAddresses[i])
+        return `https://www.google.com/maps/dir/${ordered.map(a => encodeURIComponent(a)).join('/')}`
+      }
+    } catch {
+      // fallback
+    }
+
+    return `https://www.google.com/maps/dir/${allAddresses.map(a => encodeURIComponent(a)).join('/')}`
+  }
+
+  async function sendRouteEmail(transporteurId: string, routeDate: string, commandeIds: string[]) {
+    const transporteur = transporteurs.find(t => t.id === transporteurId)
+    if (!transporteur) return
+
+    const mapsLink = await buildMapsLink(commandeIds)
+    if (!mapsLink) return
+
+    try {
+      const supabase = getSupabaseClient()
+      await supabase.functions.invoke('send-route-email', {
+        body: {
+          to: transporteur.email,
+          phone: transporteur.telephone ?? null, // ← ajouter phone dans TransporteurOption
+          transporteurName: `${transporteur.prenom} ${transporteur.nom}`,
+          routeDate,
+          mapsLink,
+        },
+      })
+    } catch (err) {
+      console.error('Erreur envoi notification:', err)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!formTransporteurId || !formDate) return
@@ -149,7 +208,6 @@ export default function RoutePage() {
       const supabase = getSupabaseClient()
 
       if (editingRouteId) {
-        // --- UPDATE existing route ---
         const { error: routeError } = await supabase
           .from('routes')
           .update({
@@ -162,7 +220,6 @@ export default function RoutePage() {
 
         if (routeError) throw routeError
 
-        // Unassign all commandes currently on this route
         const { error: unassignErr } = await supabase
           .from('commandes')
           .update({ route_id: null })
@@ -170,7 +227,6 @@ export default function RoutePage() {
 
         if (unassignErr) throw unassignErr
 
-        // Re-assign selected commandes
         if (formCommandeIds.length > 0) {
           const { error: cmdError } = await supabase
             .from('commandes')
@@ -179,7 +235,6 @@ export default function RoutePage() {
 
           if (cmdError) throw cmdError
 
-          // Update commandes statut based on route statut
           const cmdStatut = ROUTE_TO_CMD_STATUT[formStatut]
           const { error: statutErr } = await supabase
             .from('commandes')
@@ -188,8 +243,10 @@ export default function RoutePage() {
 
           if (statutErr) throw statutErr
         }
+
+        await sendRouteEmail(formTransporteurId, formDate, formCommandeIds)
+
       } else {
-        // --- CREATE new route ---
         const { data: newRoute, error: routeError } = await supabase
           .from('routes')
           .insert({
@@ -211,9 +268,10 @@ export default function RoutePage() {
 
           if (cmdError) throw cmdError
         }
+
+        await sendRouteEmail(formTransporteurId, formDate, formCommandeIds)
       }
 
-      // Refresh table
       setShowModal(false)
       resetForm()
       setLoading(true)
@@ -242,7 +300,6 @@ export default function RoutePage() {
     )
   }
 
-  // Close pickers on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (calRef.current && !calRef.current.contains(e.target as Node)) setShowCalendar(false)
@@ -253,7 +310,6 @@ export default function RoutePage() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Calendar helpers
   const DAYS = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
   const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
@@ -287,7 +343,6 @@ export default function RoutePage() {
   const HOURS = Array.from({ length: 24 }, (_, i) => i)
   const MINUTES = [0, 15, 30, 45]
 
-  // Focus input when nav modal opens
   useEffect(() => {
     if (navModal.type === 'input') setTimeout(() => navInputRef.current?.focus(), 50)
   }, [navModal])
@@ -367,59 +422,56 @@ export default function RoutePage() {
   }, [])
 
   async function fetchRoutes() {
-      try {
-        const supabase = getSupabaseClient()
-        const { data, error } = await supabase
-          .from('routes')
-          .select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(nom, prenom), commandes!route_id(id, statut, distance_estimee)')
-          .order('date', { ascending: false })
+    try {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase
+        .from('routes')
+        .select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(nom, prenom), commandes!route_id(id, statut, distance_estimee)')
+        .order('date', { ascending: false })
 
-        if (error) {
-          console.error('Supabase error details:', JSON.stringify(error))
-          throw error
+      if (error) {
+        console.error('Supabase error details:', JSON.stringify(error))
+        throw error
+      }
+
+      const mapped: RouteData[] = (data ?? []).map((r: Record<string, unknown>) => {
+        const utilisateur = r.utilisateurs as { nom: string; prenom: string } | null
+        const cmds = (r.commandes ?? []) as { id: number; statut: string; distance_estimee: number | null }[]
+
+        let statut: RouteData['statut'] = 'planifiee'
+        if (cmds.length > 0) {
+          const allDone = cmds.every((c) => c.statut === 'livree' || c.statut === 'terminee')
+          const allCancelled = cmds.every((c) => c.statut === 'annulee')
+          if (allDone) statut = 'terminee'
+          else if (allCancelled) statut = 'annulee'
+          else statut = 'en_cours'
         }
 
-        const mapped: RouteData[] = (data ?? []).map((r: Record<string, unknown>) => {
-          const utilisateur = r.utilisateurs as { nom: string; prenom: string } | null
-          const cmds = (r.commandes ?? []) as { id: number; statut: string; distance_estimee: number | null }[]
+        let distance: number | null = (r.distance_totale as number) ?? null
+        if (distance == null && cmds.length > 0) {
+          const sum = cmds.reduce((acc, c) => acc + (c.distance_estimee ?? 0), 0)
+          if (sum > 0) distance = Math.round(sum * 10) / 10
+        }
 
-          let statut: RouteData['statut'] = 'planifiee'
-          if (cmds.length > 0) {
-            const allDone = cmds.every((c) => c.statut === 'livree' || c.statut === 'terminee')
-            const allCancelled = cmds.every((c) => c.statut === 'annulee')
-            if (allDone) statut = 'terminee'
-            else if (allCancelled) statut = 'annulee'
-            else statut = 'en_cours'
-          }
+        return {
+          id: r.id as number,
+          transporteur: utilisateur ? `${utilisateur.nom} ${utilisateur.prenom}` : '—',
+          transporteur_id: (r.transporteur_id as string) ?? '',
+          date: r.date as string,
+          heureDebut: (r.heure_depart as string) ?? '',
+          heureFin: (r.heure_fin as string) ?? '',
+          commandes: cmds.length,
+          commandeIds: cmds.map((c) => String(c.id)),
+          distance,
+          statut,
+        }
+      })
 
-          // Use distance_totale from route, fallback to sum of commandes distance_estimee
-          let distance: number | null = (r.distance_totale as number) ?? null
-          if (distance == null && cmds.length > 0) {
-            const sum = cmds.reduce((acc, c) => acc + (c.distance_estimee ?? 0), 0)
-            if (sum > 0) distance = Math.round(sum * 10) / 10
-          }
-
-          return {
-            id: r.id as number,
-            transporteur: utilisateur
-              ? `${utilisateur.nom} ${utilisateur.prenom}`
-              : '—',
-            transporteur_id: (r.transporteur_id as string) ?? '',
-            date: r.date as string,
-            heureDebut: (r.heure_depart as string) ?? '',
-            heureFin: (r.heure_fin as string) ?? '',
-            commandes: cmds.length,
-            commandeIds: cmds.map((c) => String(c.id)),
-            distance,
-            statut,
-          }
-        })
-
-        setRoutes(mapped)
-      } catch (err) {
-        console.error('Erreur chargement routes:', err)
-      } finally {
-        setLoading(false)
+      setRoutes(mapped)
+    } catch (err) {
+      console.error('Erreur chargement routes:', err)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -434,7 +486,6 @@ export default function RoutePage() {
 
   return (
     <div className="rt-page">
-      {/* En-tête */}
       <div className="dashboard-hero">
         <h1 className="dashboard-title">Gestion des Routes</h1>
         <p className="dashboard-sub">
@@ -442,7 +493,6 @@ export default function RoutePage() {
         </p>
       </div>
 
-      {/* Barre recherche + bouton ajouter */}
       <div className="rt-toolbar">
         <div className="rt-search">
           <Search size={15} color="var(--text-muted)" />
@@ -457,7 +507,6 @@ export default function RoutePage() {
         <button className="btn-add-agri" onClick={() => setShowModal(true)}>＋ Ajouter une route</button>
       </div>
 
-      {/* Tableau */}
       <div className="rt-table-wrap">
         <table className="rt-table">
           <thead>
@@ -554,7 +603,6 @@ export default function RoutePage() {
           </tbody>
         </table>
 
-        {/* Pagination */}
         <div className="rt-pagination">
           <span className="rt-pag-info">
             {Math.min((currentPage - 1) * itemsPerPage + 1, filtered.length)}–{Math.min(currentPage * itemsPerPage, filtered.length)} sur {filtered.length} routes
@@ -573,18 +621,15 @@ export default function RoutePage() {
         </div>
       </div>
 
-      {/* Modal ajout route */}
       {showModal && (
         <div className="rt-modal-overlay" onClick={() => setShowModal(false)}>
           <div className="nv-modal" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
             <div className="nv-modal-header">
               <h2 className="nv-modal-title">{editingRouteId ? 'Modifier la route' : 'Nouvelle route'}</h2>
               <button className="nv-close" onClick={() => { setShowModal(false); resetForm() }}><X size={18} /></button>
             </div>
 
             <form className="nv-modal-body" onSubmit={handleSubmit}>
-              {/* Transporteur */}
               <div className="nv-field">
                 <span className="nv-label">Transporteur (valide uniquement)</span>
                 <div className="nv-select-wrap">
@@ -603,7 +648,6 @@ export default function RoutePage() {
                 </div>
               </div>
 
-              {/* Statut (edit mode only) */}
               {editingRouteId && (
                 <div className="nv-field">
                   <span className="nv-label">Statut</span>
@@ -622,9 +666,7 @@ export default function RoutePage() {
                 </div>
               )}
 
-              {/* Date / Heures row */}
               <div className="nv-row-3">
-                {/* Date picker */}
                 <div className="nv-field" ref={calRef}>
                   <span className="nv-label">Date</span>
                   <button
@@ -671,7 +713,6 @@ export default function RoutePage() {
                   )}
                 </div>
 
-                {/* Heure début */}
                 <div className="nv-field" ref={timeStartRef}>
                   <span className="nv-label">Heure début</span>
                   <button
@@ -729,7 +770,6 @@ export default function RoutePage() {
                   )}
                 </div>
 
-                {/* Heure fin */}
                 <div className="nv-field" ref={timeEndRef}>
                   <span className="nv-label">Heure fin</span>
                   <button
@@ -788,7 +828,6 @@ export default function RoutePage() {
                 </div>
               </div>
 
-              {/* Commandes */}
               <div className="nv-field">
                 <span className="nv-label">Commandes disponibles</span>
                 <div className="nv-cmd-list">
@@ -829,17 +868,12 @@ export default function RoutePage() {
                 </div>
               </div>
 
-              {/* Submit */}
               <button
                 type="submit"
                 className="nv-submit"
                 disabled={submitting || !formTransporteurId || formCommandeIds.length === 0}
               >
-                {submitting ? (
-                  <Loader size={16} className="nv-spin" />
-                ) : (
-                  <Navigation size={16} />
-                )}
+                {submitting ? <Loader size={16} className="nv-spin" /> : <Navigation size={16} />}
                 <span>{submitting ? 'Enregistrement…' : editingRouteId ? 'Enregistrer les modifications' : 'Générer & Optimiser'}</span>
               </button>
             </form>
@@ -847,12 +881,10 @@ export default function RoutePage() {
         </div>
       )}
 
-      {/* Modal navigation MapQuest */}
       {navModal.type !== 'none' && (
         <div className="rt-modal-overlay" onClick={() => setNavModal({ type: 'none' })}>
           <div className="rt-modal" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
 
-            {/* Adresse de départ */}
             {navModal.type === 'input' && (
               <>
                 <div className="rt-modal-header">
@@ -889,7 +921,6 @@ export default function RoutePage() {
               </>
             )}
 
-            {/* Warning: adresses imprécises */}
             {navModal.type === 'warning' && (
               <>
                 <div className="rt-modal-header">
@@ -921,7 +952,6 @@ export default function RoutePage() {
               </>
             )}
 
-            {/* Aucune commande */}
             {navModal.type === 'noCommandes' && (
               <>
                 <div className="rt-modal-header">
