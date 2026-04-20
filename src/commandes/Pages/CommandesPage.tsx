@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { getAllCommandes } from "../Services/commande.service";
+import { deleteCommande } from "../Repo/commande.repo";
 import CommandesTable from "../Components/CommandesTable";
 import CommandeDetailsModal from "../Components/CommandeDetailsModal";
+import CommandeEditModal from "../Components/CommandeEditModal";
 import type { CommandeData, CommandeFilter } from "../commandes.types";
 
 const ITEMS_PER_PAGE = 10;
@@ -44,6 +46,26 @@ export default function CommandesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCommandeId, setSelectedCommandeId] = useState<string | null>(readSelectedCommandeIdFromUrl());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editCommande, setEditCommande] = useState<CommandeData | null>(null);
+  const [editCommandeId, setEditCommandeId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editModalMode, setEditModalMode] = useState<"create" | "edit">("edit");
+
+  const loadCommandes = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const data = await getAllCommandes();
+      const list = Array.isArray(data) ? (data as CommandeData[]) : [];
+      setCommandes(list);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("Impossible de charger les commandes.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const onPopState = () => setSelectedCommandeId(readSelectedCommandeIdFromUrl());
@@ -54,33 +76,8 @@ export default function CommandesPage() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-
-    const fetchCommandes = async () => {
-      setLoading(true);
-      setErrorMessage(null);
-
-      try {
-        
-        const data = await getAllCommandes();
-        if (mounted) {
-          const list = Array.isArray(data) ? (data as CommandeData[]) : [];
-          setCommandes(list);
-        }
-      } catch (error) {
-        console.error(error);
-        if (mounted) setErrorMessage("Impossible de charger les commandes.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchCommandes();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    loadCommandes();
+  }, [loadCommandes]);
 
   const getStatus = (commande: CommandeData) =>
     asText(
@@ -93,14 +90,6 @@ export default function CommandesPage() {
     heure_livraison: asText(commande.heure_livraison ?? commande.heure ?? commande.heure_collecte ?? commande.time),
     adresse_collecte: asText(commande.adresse_collecte ?? commande.collecte ?? commande.origine),
     adresse_livraison: asText(commande.adresse_livraison ?? commande.livraison ?? commande.destination),
-    distance_estimee: asText(
-      commande.distance_estimee ??
-        commande.distance ??
-        commande.distance_km ??
-        commande.kilometrage ??
-        commande.temps_estime ??
-        commande.duree
-    ),
   });
 
   const getCollecteLivraison = (commande: CommandeData) => ({
@@ -169,6 +158,46 @@ export default function CommandesPage() {
     updateCommandeIdInUrl(null);
   };
 
+  const onEditCommande = (commandeId: string, commande: CommandeData) => {
+    setEditModalMode("edit");
+    setEditCommandeId(commandeId);
+    setEditCommande(commande);
+    setIsEditModalOpen(true);
+  };
+
+  const onCreateCommande = () => {
+    setEditModalMode("create");
+    setEditCommandeId(null);
+    setEditCommande(null);
+    setIsEditModalOpen(true);
+  };
+
+  const onCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditCommandeId(null);
+    setEditCommande(null);
+  };
+
+  const onSaved = async () => {
+    await loadCommandes();
+    onCloseEditModal();
+  };
+
+  const onDeleteCommande = (commandeId: string, commande: CommandeData) => {
+    if (!window.confirm(`Supprimer la commande #${commandeId} ? Cette action est irreversible.`)) return;
+    const rawId = String(commande.id ?? commande.id_commande ?? commande.commande_id ?? "");
+    if (!rawId) return;
+    deleteCommande(rawId)
+      .then(() => {
+        setCommandes((prev) =>
+          prev.filter((c, i) => asCommandeId(c, i) !== commandeId)
+        );
+      })
+      .catch((err: unknown) => {
+        alert(err instanceof Error ? err.message : "Erreur lors de la suppression.");
+      });
+  };
+
   return (
     <div className="cmd-page">
       <div className="cmd-toolbar-row">
@@ -186,7 +215,7 @@ export default function CommandesPage() {
           />
         </div>
 
-        <button className="btn-add-agri" type="button">+ Nouvelle commande</button>
+        <button className="btn-add-agri" type="button" onClick={onCreateCommande}>+ Nouvelle commande</button>
       </div>
 
       <div className="dashboard-hero">
@@ -267,6 +296,8 @@ export default function CommandesPage() {
             getPrimaryFields={getPrimaryFields}
             getNature={getNature}
             getStatus={getStatus}
+            onEditCommande={onEditCommande}
+            onDeleteCommande={onDeleteCommande}
           />
 
           <div className="agri-pagination">
@@ -310,6 +341,15 @@ export default function CommandesPage() {
             commande={isModalOpen ? selectedCommande : null}
             commandeId={isModalOpen ? selectedCommandeId : null}
             onClose={onCloseModal}
+          />
+
+          <CommandeEditModal
+            mode={editModalMode}
+            isOpen={isEditModalOpen}
+            commande={editModalMode === "edit" ? editCommande : null}
+            commandeId={editModalMode === "edit" ? editCommandeId : null}
+            onClose={onCloseEditModal}
+            onSaved={onSaved}
           />
         </>
       )}

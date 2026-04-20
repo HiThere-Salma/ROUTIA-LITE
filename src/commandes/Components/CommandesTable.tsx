@@ -1,3 +1,4 @@
+import { Pencil, Trash2 } from "lucide-react";
 import CommandeStatusBadge from "./CommandeStatusBadge";
 import type { CommandeData } from "../commandes.types";
 
@@ -11,10 +12,11 @@ type CommandesTableProps = {
     heure_livraison: string;
     adresse_collecte: string;
     adresse_livraison: string;
-    distance_estimee: string;
   };
   getNature: (commande: CommandeData) => string;
   getStatus: (commande: CommandeData) => string;
+  onEditCommande: (commandeId: string, commande: CommandeData) => void;
+  onDeleteCommande: (commandeId: string, commande: CommandeData) => void;
 };
 
 export default function CommandesTable({
@@ -25,6 +27,8 @@ export default function CommandesTable({
   getPrimaryFields,
   getNature,
   getStatus,
+  onEditCommande,
+  onDeleteCommande,
 }: CommandesTableProps) {
   return (
     <div className="cmd-table-wrap">
@@ -36,9 +40,9 @@ export default function CommandesTable({
             <th>HEURE LIVRAISON</th>
             <th>ADRESSE COLLECTE</th>
             <th>ADRESSE LIVRAISON</th>
-            <th>DISTANCE ESTIMEE</th>
             <th>NATURE</th>
             <th>STATUT</th>
+            <th>ACTIONS</th>
           </tr>
         </thead>
         <tbody>
@@ -79,13 +83,30 @@ export default function CommandesTable({
                     <span>{primaryFields.adresse_livraison}</span>
                   </td>
                   <td>
-                    <span>{primaryFields.distance_estimee}</span>
-                  </td>
-                  <td>
                     <span className="cmd-nature-pill">{nature}</span>
                   </td>
                   <td>
                     <CommandeStatusBadge status={status} />
+                  </td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <div className="cmd-actions-cell">
+                      <button
+                        className="cmd-action-btn cmd-action-btn--edit"
+                        type="button"
+                        title="Modifier"
+                        onClick={() => onEditCommande(commandeId, commande)}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        className="cmd-action-btn cmd-action-btn--delete"
+                        type="button"
+                        title="Supprimer"
+                        onClick={() => onDeleteCommande(commandeId, commande)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

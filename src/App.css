@@ -2000,3 +2000,150 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Action buttons ─────────────────────────────────────────── */
+.cmd-actions-cell {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.cmd-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+
+.cmd-action-btn:hover {
+  transform: scale(1.08);
+}
+
+.cmd-action-btn--edit {
+  background: rgba(99, 179, 237, 0.12);
+  color: #63b3ed;
+}
+
+.cmd-action-btn--edit:hover {
+  background: rgba(99, 179, 237, 0.28);
+}
+
+.cmd-action-btn--delete {
+  background: rgba(252, 129, 74, 0.12);
+  color: #fc814a;
+}
+
+.cmd-action-btn--delete:hover {
+  background: rgba(252, 129, 74, 0.28);
+}
+
+/* ── Edit modal inputs ──────────────────────────────────────── */
+.cmd-edit-input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #2d2d3a);
+  background: var(--bg-input, #16161f);
+  color: var(--text, #f5f5f7);
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.cmd-edit-input:focus {
+  border-color: var(--accent, #6c7bff);
+}
+
+.cmd-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cmd-edit-span-2 {
+  grid-column: span 2;
+}
+
+.cmd-route-association {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 12px;
+}
+
+.cmd-route-association-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.cmd-route-association-list {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cmd-route-association-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cmd-route-association-item input {
+  margin-top: 2px;
+}
+
+.cmd-route-association-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cmd-route-association-help {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+
+.cmd-edit-error {
+  color: #fc814a;
+  font-size: 0.82rem;
+  margin-top: 10px;
+}
+
+.cmd-edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #2d2d3a);
+}
+
+.cmd-edit-footer .btn-add-agri {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 920px) {
+  .cmd-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cmd-edit-span-2 {
+    grid-column: auto;
+  }
+}
