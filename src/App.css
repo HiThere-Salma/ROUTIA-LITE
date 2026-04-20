@@ -980,6 +980,72 @@ body {
 .btn-delete-confirm:hover:not(:disabled) { opacity: 0.85; }
 .btn-delete-confirm:disabled { opacity: 0.5; cursor: default; }
 
+/* ===== Archive / Reactivate buttons ===== */
+.agri-action-btn--archive:hover { color: #fbbf24; border-color: #fbbf2466; }
+
+.btn-archive-confirm {
+  background: #d97706;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-archive-confirm:hover:not(:disabled) { opacity: 0.85; }
+.btn-archive-confirm:disabled { opacity: 0.5; cursor: default; }
+
+.agri-action-btn--reactivate:hover { color: #4ade80; border-color: #4ade8066; }
+
+.btn-reactivate-confirm {
+  background: var(--green);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-reactivate-confirm:hover:not(:disabled) { opacity: 0.85; }
+.btn-reactivate-confirm:disabled { opacity: 0.5; cursor: default; }
+
+/* ===== View toggle (Actifs / Archivés) ===== */
+.tr-view-toggle {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.topbar-toggle {
+  margin: 0 8px;
+}
+
+.tr-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tr-toggle-btn + .tr-toggle-btn { border-left: 1px solid var(--border); }
+.tr-toggle-btn--active { background: var(--green); color: #000; font-weight: 700; }
+.tr-toggle-btn:not(.tr-toggle-btn--active):hover { background: var(--bg3); color: var(--text); }
+
+/* Archived row style */
+.tr-row--archived td,
+.agri-row--archived td { opacity: 0.65; }
+
 .modal-field--full { grid-column: 1 / -1; }
 
 /* ===== tr-ville (transporteur) ===== */

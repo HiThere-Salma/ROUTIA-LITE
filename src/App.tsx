@@ -39,6 +39,12 @@ function App() {
   const [active, setActive] = useState('Dashboard')
   const [isAgriModalOpen, setIsAgriModalOpen] = useState(false)
   const [isTrModalOpen, setIsTrModalOpen] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
+
+  function handleNavChange(label: string) {
+    setActive(label)
+    setShowArchived(false)
+  }
 
   const searchPlaceholder =
     active === 'Gestion des agriculteurs' ? 'Rechercher un agriculteur, un CIN ou une ville...' :
@@ -58,7 +64,7 @@ function App() {
             <button
               key={item.label}
               className={`nav-item ${active === item.label ? 'nav-item--active' : ''}`}
-              onClick={() => setActive(item.label)}
+              onClick={() => handleNavChange(item.label)}
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
@@ -83,6 +89,22 @@ function App() {
             <span className="search-icon">🔍</span>
             <input className="search-input" placeholder={searchPlaceholder} />
           </div>
+          {(active === 'Gestion des agriculteurs' || active === 'Gestion des transporteurs') && (
+            <div className="tr-view-toggle topbar-toggle">
+              <button
+                className={`tr-toggle-btn${!showArchived ? ' tr-toggle-btn--active' : ''}`}
+                onClick={() => setShowArchived(false)}
+              >
+                Actifs
+              </button>
+              <button
+                className={`tr-toggle-btn${showArchived ? ' tr-toggle-btn--active' : ''}`}
+                onClick={() => setShowArchived(true)}
+              >
+                Archivés
+              </button>
+            </div>
+          )}
           <div className="topbar-right">
             {active === 'Gestion des agriculteurs' && (
               <button className="btn-add-agri" onClick={() => setIsAgriModalOpen(true)}>＋ Ajouter un agriculteur</button>
@@ -96,9 +118,9 @@ function App() {
         </header>
 
         {active === 'Gestion des agriculteurs' ? (
-          <AgriculteurPage isModalOpen={isAgriModalOpen} onCloseModal={() => setIsAgriModalOpen(false)} />
+          <AgriculteurPage isModalOpen={isAgriModalOpen} onCloseModal={() => setIsAgriModalOpen(false)} showArchived={showArchived} onToggleArchived={() => setShowArchived((v) => !v)} />
         ) : active === 'Gestion des transporteurs' ? (
-          <TransporteurPage isModalOpen={isTrModalOpen} onCloseModal={() => setIsTrModalOpen(false)} />
+          <TransporteurPage isModalOpen={isTrModalOpen} onCloseModal={() => setIsTrModalOpen(false)} showArchived={showArchived} onToggleArchived={() => setShowArchived((v) => !v)} />
         ) : (
         <div className="dashboard">
           <div className="dashboard-hero">

@@ -16,10 +16,11 @@ export async function fetchAgriculteurs(page: number): Promise<AgriculteurListRe
   const { data, error, count } = await supabase
     .from('utilisateurs')
     .select(
-      'id, prenom, nom, email, role, cin, telephone, numero_civique, rue, ville, code_postal, quartier, date_creation',
+      'id, prenom, nom, email, role, cin, telephone, numero_civique, rue, ville, code_postal, quartier, date_creation, is_archived',
       { count: 'exact' }
     )
     .eq('role', 'agriculteur')
+    .eq('is_archived', false)
     .order('date_creation', { ascending: false })
     .range(from, to)
 
@@ -38,7 +39,7 @@ export async function createAgriculteur(values: AgriculteurFormValues): Promise<
   const { data, error } = await supabase
     .from('utilisateurs')
     .insert({ ...rest, rue: adresse, role: 'agriculteur' })
-    .select('id, prenom, nom, email, role, cin, telephone, numero_civique, rue, ville, code_postal, quartier, date_creation')
+    .select('id, prenom, nom, email, role, cin, telephone, numero_civique, rue, ville, code_postal, quartier, date_creation, is_archived')
     .single()
 
   if (error) throw error
@@ -53,15 +54,45 @@ export async function updateAgriculteur(id: string, values: AgriculteurFormValue
     .from('utilisateurs')
     .update({ ...rest, rue: adresse })
     .eq('id', id)
-    .select('id, prenom, nom, email, role, cin, telephone, numero_civique, rue, ville, code_postal, quartier, date_creation')
+    .select('id, prenom, nom, email, role, cin, telephone, numero_civique, rue, ville, code_postal, quartier, date_creation, is_archived')
     .single()
 
   if (error) throw error
   return data
 }
 
-export async function deleteAgriculteur(id: string): Promise<void> {
+export async function archiveAgriculteur(id: string): Promise<void> {
   const supabase = getSupabaseClient()
-  const { error } = await supabase.from('utilisateurs').delete().eq('id', id)
+  const { error } = await supabase.from('utilisateurs').update({ is_archived: true }).eq('id', id)
   if (error) throw error
+}
+
+export async function reactivateAgriculteur(id: string): Promise<void> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase.from('utilisateurs').update({ is_archived: false }).eq('id', id)
+  if (error) throw error
+}
+
+export async function fetchArchivedAgriculteurs(page: number): Promise<AgriculteurListResult> {
+  const supabase = getSupabaseClient()
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
+  const { data, error, count } = await supabase
+    .from('utilisateurs')
+    .select(
+      'id, prenom, nom, email, role, cin, telephone, numero_civique, rue, ville, code_postal, quartier, date_creation, is_archived',
+      { count: 'exact' }
+    )
+    .eq('role', 'agriculteur')
+    .eq('is_archived', true)
+    .order('date_creation', { ascending: false })
+    .range(from, to)
+
+  if (error) throw error
+
+  return {
+    agriculteurs: data ?? [],
+    total: count ?? 0,
+  }
 }

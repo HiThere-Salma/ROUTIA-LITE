@@ -13,4 +13,5 @@ export type Transporteur = {
   assurance_valide: boolean | null
   visite_valide: boolean | null
   date_creation: string
+  is_archived: boolean
 }

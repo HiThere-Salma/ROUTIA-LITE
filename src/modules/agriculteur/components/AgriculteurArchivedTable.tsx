@@ -1,14 +1,13 @@
 import type { Agriculteur } from '../types/agriculteur.types'
-import { AgriculteurTableRow } from './AgriculteurTableRow'
+import { AgriculteurArchivedTableRow } from './AgriculteurArchivedTableRow'
 
 type Props = {
   agriculteurs: Agriculteur[]
   isLoading: boolean
-  onEdit: (agriculteur: Agriculteur) => void
-  onArchive: (agriculteur: Agriculteur) => void
+  onReactivate: (agriculteur: Agriculteur) => void
 }
 
-export function AgriculteurTable({ agriculteurs, isLoading, onEdit, onArchive }: Props) {
+export function AgriculteurArchivedTable({ agriculteurs, isLoading, onReactivate }: Props) {
   return (
     <table className="agri-table">
       <thead>
@@ -28,10 +27,10 @@ export function AgriculteurTable({ agriculteurs, isLoading, onEdit, onArchive }:
           </tr>
         ) : agriculteurs.length === 0 ? (
           <tr>
-            <td colSpan={6} className="agri-table-empty">Aucun agriculteur trouvé.</td>
+            <td colSpan={6} className="agri-table-empty">Aucun agriculteur archivé.</td>
           </tr>
         ) : agriculteurs.map((agriculteur) => (
-          <AgriculteurTableRow key={agriculteur.id} agriculteur={agriculteur} onEdit={onEdit} onArchive={onArchive} />
+          <AgriculteurArchivedTableRow key={agriculteur.id} agriculteur={agriculteur} onReactivate={onReactivate} />
         ))}
       </tbody>
     </table>

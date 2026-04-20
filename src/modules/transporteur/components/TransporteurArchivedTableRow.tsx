@@ -5,17 +5,16 @@ import { DocBadge } from './DocBadge'
 
 type Props = {
   transporteur: Transporteur
-  onEdit: (transporteur: Transporteur) => void
-  onArchive: (transporteur: Transporteur) => void
+  onReactivate: (transporteur: Transporteur) => void
 }
 
-export function TransporteurTableRow({ transporteur, onEdit, onArchive }: Props) {
+export function TransporteurArchivedTableRow({ transporteur, onReactivate }: Props) {
   const initials = `${transporteur.nom[0]}${transporteur.prenom[0]}`
   const colorIndex = (transporteur.nom.charCodeAt(0) + transporteur.nom.charCodeAt(transporteur.nom.length - 1)) % AVATAR_COLORS.length
   const palette = AVATAR_COLORS[colorIndex]
 
   return (
-    <tr>
+    <tr className="tr-row--archived">
       <td>
         <div className="tr-name-cell">
           <span className="tr-avatar" style={{ background: palette.bg, color: palette.color }}>
@@ -49,8 +48,7 @@ export function TransporteurTableRow({ transporteur, onEdit, onArchive }: Props)
       </td>
       <td>
         <div className="agri-actions">
-          <button className="agri-action-btn" title="Modifier" onClick={() => onEdit(transporteur)}>✎</button>
-          <button className="agri-action-btn agri-action-btn--archive" title="Archiver" onClick={() => onArchive(transporteur)}>⊘</button>
+          <button className="agri-action-btn agri-action-btn--reactivate" title="Réactiver" onClick={() => onReactivate(transporteur)}>↺</button>
         </div>
       </td>
     </tr>

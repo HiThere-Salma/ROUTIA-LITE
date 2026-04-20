@@ -1,14 +1,13 @@
 import type { Transporteur } from '../types/transporteur.types'
-import { TransporteurTableRow } from './TransporteurTableRow'
+import { TransporteurArchivedTableRow } from './TransporteurArchivedTableRow'
 
 type Props = {
   transporteurs: Transporteur[]
   isLoading: boolean
-  onEdit: (transporteur: Transporteur) => void
-  onArchive: (transporteur: Transporteur) => void
+  onReactivate: (transporteur: Transporteur) => void
 }
 
-export function TransporteurTable({ transporteurs, isLoading, onEdit, onArchive }: Props) {
+export function TransporteurArchivedTable({ transporteurs, isLoading, onReactivate }: Props) {
   return (
     <table className="tr-table">
       <thead>
@@ -28,10 +27,10 @@ export function TransporteurTable({ transporteurs, isLoading, onEdit, onArchive 
           </tr>
         ) : transporteurs.length === 0 ? (
           <tr>
-            <td colSpan={6} className="agri-table-empty">Aucun transporteur trouvé.</td>
+            <td colSpan={6} className="agri-table-empty">Aucun transporteur archivé.</td>
           </tr>
         ) : transporteurs.map((transporteur) => (
-          <TransporteurTableRow key={transporteur.id} transporteur={transporteur} onEdit={onEdit} onArchive={onArchive} />
+          <TransporteurArchivedTableRow key={transporteur.id} transporteur={transporteur} onReactivate={onReactivate} />
         ))}
       </tbody>
     </table>

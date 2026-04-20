@@ -12,4 +12,5 @@ export type Agriculteur = {
   code_postal: string | null
   quartier: string | null
   date_creation: string
+  is_archived: boolean
 }
