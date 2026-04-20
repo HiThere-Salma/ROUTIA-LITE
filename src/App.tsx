@@ -1,6 +1,6 @@
 import './App.css'
 import { useState, useEffect } from 'react'
-import { supabase } from './lib/supabase'
+import { getSupabaseClient } from './lib/supabase'
 import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList } from 'lucide-react'
 import AgriculteurPage from './modules/agriculteur/pages/AgriculteurPage'
 import TransporteurPage from './modules/transporteur/pages/TransporteurPage'
@@ -90,6 +90,7 @@ function App() {
   async function fetchDashboardData() {
     setLoading(true)
     try {
+      const supabase = getSupabaseClient()
       const [
         { data: allCommandes },
         { data: recentCommandes },
