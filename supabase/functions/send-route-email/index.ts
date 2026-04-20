@@ -24,7 +24,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'RoutIA <onboarding@yazure.cloud>',
+        from: 'RoutIA <noreply@adven-consulting.com>',
         to: [to],
         subject: `Votre itinéraire du ${routeDate}`,
         html: `
