@@ -2,8 +2,8 @@ import './App.css'
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList } from 'lucide-react'
-import AgriculteurPage from './pages/AgriculteurPage'
-import TransporteurPage from './pages/TransporteurPage'
+import AgriculteurPage from './modules/agriculteur/pages/AgriculteurPage'
+import TransporteurPage from './modules/transporteur/pages/TransporteurPage'
 import RoutePage from './pages/RoutePage'
 
 const navItems = [
@@ -65,6 +65,9 @@ function statusLabel(statut: string) {
 
 function App() {
   const [active, setActive] = useState('Dashboard')
+  const [isAgriModalOpen, setIsAgriModalOpen] = useState(false)
+  const [isTrModalOpen, setIsTrModalOpen] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
   const [commandes, setCommandes] = useState<Commande[]>([])
   const [routes, setRoutes] = useState<Route[]>([])
   const [stats, setStats] = useState<Stats>({
@@ -74,6 +77,11 @@ function App() {
     livraisonsCompletes: 0,
   })
   const [loading, setLoading] = useState(true)
+
+  function handleNavChange(label: string) {
+    setActive(label)
+    setShowArchived(false)
+  }
 
   useEffect(() => {
     fetchDashboardData()
@@ -126,7 +134,7 @@ function App() {
             <button
               key={item.label}
               className={`nav-item ${active === item.label ? 'nav-item--active' : ''}`}
-              onClick={() => setActive(item.label)}
+              onClick={() => handleNavChange(item.label)}
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
@@ -147,20 +155,51 @@ function App() {
 
       <main className="main-content">
         <header className="topbar">
+          <div className="topbar-search">
+            <span className="search-icon">🔍</span>
+            <input
+              className="search-input"
+              placeholder={
+                active === 'Gestion des agriculteurs' ? 'Rechercher un agriculteur, un CIN ou une ville...' :
+                active === 'Gestion des transporteurs' ? 'Rechercher un transporteur...' :
+                'Rechercher une commande, un transporteur...'
+              }
+            />
+          </div>
+          {(active === 'Gestion des agriculteurs' || active === 'Gestion des transporteurs') && (
+            <div className="tr-view-toggle topbar-toggle">
+              <button
+                className={`tr-toggle-btn${!showArchived ? ' tr-toggle-btn--active' : ''}`}
+                onClick={() => setShowArchived(false)}
+              >
+                Actifs
+              </button>
+              <button
+                className={`tr-toggle-btn${showArchived ? ' tr-toggle-btn--active' : ''}`}
+                onClick={() => setShowArchived(true)}
+              >
+                Archivés
+              </button>
+            </div>
+          )}
           <div className="topbar-right">
             {active === 'Gestion des agriculteurs' && (
-              <button className="btn-add-agri">＋ Ajouter un agriculteur</button>
+              <button className="btn-add-agri" onClick={() => setIsAgriModalOpen(true)}>＋ Ajouter un agriculteur</button>
             )}
             {active === 'Gestion des transporteurs' && (
-              <button className="btn-add-agri">＋ Ajouter un transporteur</button>
+              <button className="btn-add-agri" onClick={() => setIsTrModalOpen(true)}>＋ Ajouter un transporteur</button>
             )}
             <button className="icon-btn"><Bell size={16} /></button>
             <button className="icon-btn"><Settings size={16} /></button>
           </div>
         </header>
 
-        {active === 'Gestion des agriculteurs' && <AgriculteurPage />}
-        {active === 'Gestion des transporteurs' && <TransporteurPage />}
+        {active === 'Gestion des agriculteurs' && (
+          <AgriculteurPage isModalOpen={isAgriModalOpen} onCloseModal={() => setIsAgriModalOpen(false)} showArchived={showArchived} />
+        )}
+        {active === 'Gestion des transporteurs' && (
+          <TransporteurPage isModalOpen={isTrModalOpen} onCloseModal={() => setIsTrModalOpen(false)} showArchived={showArchived} />
+        )}
 
         {active === 'Dashboard' && (
           <div className="dashboard">
