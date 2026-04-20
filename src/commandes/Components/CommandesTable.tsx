@@ -13,7 +13,6 @@ type CommandesTableProps = {
     adresse_collecte: string;
     adresse_livraison: string;
   };
-  getNature: (commande: CommandeData) => string;
   getStatus: (commande: CommandeData) => string;
   onEditCommande: (commandeId: string, commande: CommandeData) => void;
   onDeleteCommande: (commandeId: string, commande: CommandeData) => void;
@@ -25,7 +24,6 @@ export default function CommandesTable({
   onSelectCommande,
   getCommandeId,
   getPrimaryFields,
-  getNature,
   getStatus,
   onEditCommande,
   onDeleteCommande,
@@ -37,10 +35,8 @@ export default function CommandesTable({
           <tr>
             <th>ID COMMANDE</th>
             <th>DATE COLLECTE</th>
-            <th>HEURE LIVRAISON</th>
             <th>ADRESSE COLLECTE</th>
             <th>ADRESSE LIVRAISON</th>
-            <th>NATURE</th>
             <th>STATUT</th>
             <th>ACTIONS</th>
           </tr>
@@ -48,7 +44,7 @@ export default function CommandesTable({
         <tbody>
           {commandes.length === 0 ? (
             <tr>
-              <td className="cmd-management-empty" colSpan={8}>
+              <td className="cmd-management-empty" colSpan={6}>
                 Aucune commande a afficher.
               </td>
             </tr>
@@ -56,7 +52,6 @@ export default function CommandesTable({
             commandes.map((commande, index) => {
               const commandeId = getCommandeId(commande, index);
               const primaryFields = getPrimaryFields(commande);
-              const nature = getNature(commande);
               const status = getStatus(commande);
               const isSelected = selectedCommandeId === commandeId;
 
@@ -74,16 +69,10 @@ export default function CommandesTable({
                     <span>{primaryFields.date_collecte}</span>
                   </td>
                   <td>
-                    <span>{primaryFields.heure_livraison}</span>
-                  </td>
-                  <td>
                     <span>{primaryFields.adresse_collecte}</span>
                   </td>
                   <td>
                     <span>{primaryFields.adresse_livraison}</span>
-                  </td>
-                  <td>
-                    <span className="cmd-nature-pill">{nature}</span>
                   </td>
                   <td>
                     <CommandeStatusBadge status={status} />

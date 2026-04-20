@@ -1,7 +1,5 @@
 export type CommandeData = Record<string, unknown>;
 
-export type CommandeFilter = "toutes" | "en_cours" | "livrees" | "attente";
-
 export type CommandeStatus =
 	| "en_attente"
 	| "assignee"

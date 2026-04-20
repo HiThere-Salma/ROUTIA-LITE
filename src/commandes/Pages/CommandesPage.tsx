@@ -5,9 +5,10 @@ import { deleteCommande } from "../Repo/commande.repo";
 import CommandesTable from "../Components/CommandesTable";
 import CommandeDetailsModal from "../Components/CommandeDetailsModal";
 import CommandeEditModal from "../Components/CommandeEditModal";
-import type { CommandeData, CommandeFilter } from "../commandes.types";
+import type { CommandeData } from "../commandes.types";
 
 const ITEMS_PER_PAGE = 10;
+const FILTER_ALL = "__all__";
 
 function asText(value: unknown, fallback = "-") {
   if (value === null || value === undefined || value === "") return fallback;
@@ -20,6 +21,18 @@ function asCommandeId(commande: CommandeData, index: number) {
     commande.id ?? commande.id_commande ?? commande.commande_id ?? commande.reference ?? commande.num_commande ?? commande.numero ?? commande.numero_commande,
     `CMD-${index + 1}`
   );
+}
+
+function formatStatusLabel(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "En attente";
+
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/^./, (letter) => letter.toUpperCase());
 }
 
 function readSelectedCommandeIdFromUrl() {
@@ -42,7 +55,7 @@ export default function CommandesPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<CommandeFilter>("toutes");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState(FILTER_ALL);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCommandeId, setSelectedCommandeId] = useState<string | null>(readSelectedCommandeIdFromUrl());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -80,10 +93,7 @@ export default function CommandesPage() {
   }, [loadCommandes]);
 
   const getStatus = (commande: CommandeData) =>
-    asText(
-      commande.statut ?? commande.status ?? commande.etat ?? commande.etat_commande ?? commande.etat_livraison,
-      "En attente"
-    );
+    formatStatusLabel(commande.statut ?? commande.status ?? commande.etat ?? commande.etat_commande ?? commande.etat_livraison);
 
   const getPrimaryFields = (commande: CommandeData) => ({
     date_collecte: asText(commande.date_collecte ?? commande.date ?? commande.created_at),
@@ -100,11 +110,30 @@ export default function CommandesPage() {
   const getNature = (commande: CommandeData) =>
     asText(commande.nature ?? commande.produit ?? commande.type_produit, "-");
 
+  const statusFilterOptions = useMemo(() => {
+    const uniqueStatuses = new Set<string>();
+
+    commandes.forEach((commande) => {
+      uniqueStatuses.add(getStatus(commande));
+    });
+
+    const dynamicValues = Array.from(uniqueStatuses)
+      .sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }))
+      .map((value) => ({ value, label: value }));
+
+    return [{ value: FILTER_ALL, label: "Tous les statuts" }, ...dynamicValues];
+  }, [commandes, getStatus]);
+
+  useEffect(() => {
+    if (!statusFilterOptions.some((option) => option.value === selectedStatusFilter)) {
+      setSelectedStatusFilter(FILTER_ALL);
+    }
+  }, [selectedStatusFilter, statusFilterOptions]);
+
   const filteredCommandes = useMemo(() => {
     const searchLower = search.toLowerCase().trim();
 
     return commandes.filter((commande, index) => {
-      const status = getStatus(commande).toLowerCase();
       const commandeId = asCommandeId(commande, index).toLowerCase();
       const produit = getNature(commande).toLowerCase();
       const collecte = getCollecteLivraison(commande).collecte.toLowerCase();
@@ -117,15 +146,12 @@ export default function CommandesPage() {
         collecte.includes(searchLower) ||
         livraison.includes(searchLower);
 
-      const matchFilter =
-        filter === "toutes" ||
-        (filter === "livrees" && status.includes("livr")) ||
-        (filter === "en_cours" && (status.includes("cours") || status.includes("transport"))) ||
-        (filter === "attente" && status.includes("attente"));
+      const statusValue = getStatus(commande).toLowerCase();
+      const matchFilter = selectedStatusFilter === FILTER_ALL || statusValue === selectedStatusFilter.toLowerCase();
 
       return matchSearch && matchFilter;
     });
-  }, [commandes, filter, search]);
+  }, [commandes, getStatus, search, selectedStatusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredCommandes.length / ITEMS_PER_PAGE));
 
@@ -200,9 +226,18 @@ export default function CommandesPage() {
 
   return (
     <div className="cmd-page">
-      <div className="cmd-toolbar-row">
-        <div className="cmd-search-wrap">
-          <Search size={16} color="var(--text-muted)" />
+      <div className="cmd-header-row">
+        <div className="dashboard-hero cmd-title-wrap">
+          <h1 className="dashboard-title">Gestion des commandes</h1>
+          <p className="dashboard-sub">Suivi en temps reel de l'activite logistique RoutIA.</p>
+        </div>
+
+        <button className="btn-add-agri" type="button" onClick={onCreateCommande}>+ Nouvelle commande</button>
+      </div>
+
+      <div className="cmd-search-row">
+        <div className="cmd-search-wrap cmd-search-wrap--compact">
+          <Search size={14} color="var(--text-muted)" />
           <input
             className="cmd-search-input"
             placeholder="Rechercher une commande, un lieu..."
@@ -214,57 +249,27 @@ export default function CommandesPage() {
             }}
           />
         </div>
-
-        <button className="btn-add-agri" type="button" onClick={onCreateCommande}>+ Nouvelle commande</button>
-      </div>
-
-      <div className="dashboard-hero">
-        <h1 className="dashboard-title">Gestion des commandes</h1>
-        <p className="dashboard-sub">Suivi en temps reel de l'activite logistique RoutIA.</p>
       </div>
 
       <div className="cmd-filter-row">
-        <div className="cmd-tabs">
-          <button
-            className={`cmd-tab ${filter === "toutes" ? "cmd-tab--active" : ""}`}
-            onClick={() => {
-              setFilter("toutes");
-              setCurrentPage(1);
-            }}
-            type="button"
-          >
-            Toutes
-          </button>
-          <button
-            className={`cmd-tab ${filter === "en_cours" ? "cmd-tab--active" : ""}`}
-            onClick={() => {
-              setFilter("en_cours");
-              setCurrentPage(1);
-            }}
-            type="button"
-          >
-            En cours
-          </button>
-          <button
-            className={`cmd-tab ${filter === "livrees" ? "cmd-tab--active" : ""}`}
-            onClick={() => {
-              setFilter("livrees");
-              setCurrentPage(1);
-            }}
-            type="button"
-          >
-            Livrees
-          </button>
-          <button
-            className={`cmd-tab ${filter === "attente" ? "cmd-tab--active" : ""}`}
-            onClick={() => {
-              setFilter("attente");
-              setCurrentPage(1);
-            }}
-            type="button"
-          >
-            Attente
-          </button>
+        <div className="cmd-filter-grid">
+          <label className="cmd-filter-field">
+            <span>Statut</span>
+            <select
+              className="cmd-filter-select"
+              value={selectedStatusFilter}
+              onChange={(event) => {
+                setSelectedStatusFilter(event.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              {statusFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="cmd-filter-actions">
@@ -272,7 +277,7 @@ export default function CommandesPage() {
             className="agri-btn-outline"
             type="button"
             onClick={() => {
-              setFilter("toutes");
+              setSelectedStatusFilter(FILTER_ALL);
               setSearch("");
               setCurrentPage(1);
             }}
@@ -294,7 +299,6 @@ export default function CommandesPage() {
             onSelectCommande={onSelectCommande}
             getCommandeId={asCommandeId}
             getPrimaryFields={getPrimaryFields}
-            getNature={getNature}
             getStatus={getStatus}
             onEditCommande={onEditCommande}
             onDeleteCommande={onDeleteCommande}
