@@ -262,6 +262,24 @@ body {
   line-height: 1;
 }
 
+.stat-secondary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.stat-secondary-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.stat-secondary-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--green);
+}
+
 .stat-bar {
   height: 3px;
   background: var(--green);
@@ -383,29 +401,36 @@ body {
 .activite-panel { height: fit-content; }
 
 .activite-list {
-  padding: 16px 18px;
+  padding: 8px 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
 }
 
-.activite-item { display: flex; gap: 12px; align-items: flex-start; }
-
-.activite-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 4px;
+.activite-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
 }
 
-.dot--success { background: var(--green); }
-.dot--warning { background: #fbbf24; }
-.dot--info    { background: #60a5fa; }
+.activite-row:last-child { border-bottom: none; }
 
-.activite-title { font-size: 13px; font-weight: 500; color: var(--text); }
-.activite-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
-.activite-time { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.activite-row-produit {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activite-row-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
 
 .fab {
   position: fixed;

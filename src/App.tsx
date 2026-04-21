@@ -1,10 +1,11 @@
 import './App.css'
-import { useState, useEffect } from 'react'
-import { getSupabaseClient } from './lib/supabase'
-import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList } from 'lucide-react'
+import { useState } from 'react'
+import { ClipboardClock, Truck, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList, Navigation, Route } from 'lucide-react'
 import AgriculteurPage from './modules/agriculteur/pages/AgriculteurPage'
 import TransporteurPage from './modules/transporteur/pages/TransporteurPage'
 import RoutePage from './pages/RoutePage'
+import { useDashboard } from './modules/dashboard/hooks/useDashboard'
+import type { CommandeRecente } from './modules/dashboard/types/dashboard.types'
 
 const navItems = [
   { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
@@ -14,31 +15,12 @@ const navItems = [
   { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
 ]
 
-type Commande = {
-  id: string
-  produit: string
-  prix: number
-  statut: string
-  date_collecte: string
-  agriculteur_id: string
-  utilisateurs: { prenom: string; nom: string } | null
-}
-
-type Route = {
-  id: string
-  transporteur_id: string
-  date: string
-  heure_depart: string
-  heure_fin: string
-  distance_totale: number
-  utilisateurs: { prenom: string; nom: string } | null
-}
-
-type Stats = {
-  totalCommandes: number
-  commandesEnCours: number
-  transporteursActifs: number
-  livraisonsCompletes: number
+type StatCard = {
+  label: string
+  value: number
+  secondaryLabel?: string
+  secondaryValue?: number
+  icon: React.ReactNode
 }
 
 function statusType(statut: string) {
@@ -68,58 +50,38 @@ function App() {
   const [isAgriModalOpen, setIsAgriModalOpen] = useState(false)
   const [isTrModalOpen, setIsTrModalOpen] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
-  const [commandes, setCommandes] = useState<Commande[]>([])
-  const [routes, setRoutes] = useState<Route[]>([])
-  const [stats, setStats] = useState<Stats>({
-    totalCommandes: 0,
-    commandesEnCours: 0,
-    transporteursActifs: 0,
-    livraisonsCompletes: 0,
-  })
-  const [loading, setLoading] = useState(true)
+  const { stats, commandesRecentes: commandes, routesRecentes: routes, isLoading: loading } = useDashboard()
 
   function handleNavChange(label: string) {
     setActive(label)
     setShowArchived(false)
   }
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
-
-  async function fetchDashboardData() {
-    setLoading(true)
-    try {
-      const supabase = getSupabaseClient()
-      const [
-        { data: allCommandes },
-        { data: recentCommandes },
-        { data: transporteurs },
-        { data: recentRoutes },
-      ] = await Promise.all([
-        supabase.from('commandes').select('statut'),
-        supabase.from('commandes').select('id, produit, prix, statut, date_collecte, agriculteur_id, utilisateurs!agriculteur_id(prenom, nom)').order('date_collecte', { ascending: false }).limit(5),
-        supabase.from('utilisateurs').select('id').eq('role', 'transporteur'),
-        supabase.from('routes').select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(prenom, nom)').order('date', { ascending: false }).limit(3),
-      ])
-      const total = allCommandes?.length ?? 0
-      const enCours = allCommandes?.filter(c => c.statut === 'en_attente' || c.statut === 'assignee' || c.statut === 'recuperee' || c.statut === 'en_transport').length ?? 0
-      const livres = allCommandes?.filter(c => c.statut === 'livree').length ?? 0
-      setStats({ totalCommandes: total, commandesEnCours: enCours, transporteursActifs: transporteurs?.length ?? 0, livraisonsCompletes: livres })
-      setCommandes((recentCommandes as unknown as Commande[]) ?? [])
-      setRoutes((recentRoutes as unknown as Route[]) ?? [])
-    } catch (err) {
-      console.error('Erreur Supabase:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const statsCards = [
-    { label: 'Total commandes', value: stats.totalCommandes, badge: '', badgeType: '', icon: <ChartColumn size={22} color="var(--green)" /> },
-    { label: 'Commandes en cours', value: stats.commandesEnCours, badge: '', badgeType: 'info', icon: <ClipboardClock size={22} color="var(--green)" /> },
-    { label: 'Transporteurs actifs', value: stats.transporteursActifs, badge: '', badgeType: 'success', icon: <Truck size={22} color="var(--green)" /> },
-    { label: 'Livraisons complétées', value: stats.livraisonsCompletes, badge: '', badgeType: 'success', icon: <CircleCheckBig size={22} color="var(--green)" /> },
+  const statsCards: StatCard[] = [
+    {
+      label: 'Transporteurs en livraison',
+      value: stats.transporteursEnLivraison,
+      icon: <Truck size={22} color="var(--green)" />,
+    },
+    {
+      label: 'Km parcourus ce mois',
+      value: stats.kmDuMois,
+      icon: <Navigation size={22} color="var(--green)" />,
+    },
+    {
+      label: 'Routes en cours',
+      value: stats.routesEnCours,
+      secondaryLabel: 'Complétées ce mois',
+      secondaryValue: stats.routesLivreesDuMois,
+      icon: <Route size={22} color="var(--green)" />,
+    },
+    {
+      label: 'Commandes en cours',
+      value: stats.commandesEnCours,
+      secondaryLabel: 'Livrées ce mois',
+      secondaryValue: stats.commandesLivreesDuMois,
+      icon: <ClipboardClock size={22} color="var(--green)" />,
+    },
   ]
 
   return (
@@ -214,12 +176,19 @@ function App() {
                 <div key={s.label} className="stat-card">
                   <div className="stat-card-top">
                     {s.icon}
-                    {s.badge && <span className={`badge badge--${s.badgeType}`}>{s.badge}</span>}
                   </div>
                   <div className="stat-label">{s.label}</div>
                   <div className="stat-value">
                     {loading ? <span className="loading-dash">—</span> : s.value}
                   </div>
+                  {s.secondaryLabel && (
+                    <div className="stat-secondary">
+                      <span className="stat-secondary-label">{s.secondaryLabel} :</span>
+                      <span className="stat-secondary-value">
+                        {loading ? '—' : s.secondaryValue}
+                      </span>
+                    </div>
+                  )}
                   <div className="stat-bar" />
                 </div>
               ))}
@@ -230,7 +199,7 @@ function App() {
                 <div className="panel">
                   <div className="panel-header">
                     <span>Commandes récentes</span>
-                    <button className="link-btn">Voir tout</button>
+                    <button className="link-btn" onClick={() => setActive('Gestion des commandes')}>Voir tout</button>
                   </div>
                   {loading ? (
                     <div className="panel-empty">
@@ -277,6 +246,7 @@ function App() {
                 <div className="panel" style={{ marginTop: '14px' }}>
                   <div className="panel-header">
                     <span>Routes récentes</span>
+                    <button className="link-btn" onClick={() => setActive('Gestion des routes')}>Voir tout</button>
                   </div>
                   {loading ? (
                     <div className="panel-empty">
@@ -312,32 +282,26 @@ function App() {
                   <span>Activité Récente</span>
                 </div>
                 <div className="activite-list">
-                  {commandes.slice(0, 3).map((c: Commande, i: number) => (
-                    <div key={i} className="activite-item">
-                      <div className="activite-dot-wrap">
-                        <span className={`activite-dot dot--${statusType(c.statut)}`} />
-                        {i < 2 && <span className="activite-line" />}
-                      </div>
-                      <div>
-                        <div className="activite-title">
-                          {c.statut === 'livree' ? 'Livraison validée' :
-                            c.statut === 'en_transport' ? 'En cours de livraison' :
-                              c.statut === 'recuperee' ? 'Commande récupérée' :
-                                c.statut === 'assignee' ? 'Commande assignée' :
-                                  'Commande en attente'}
-                        </div>
-                        <div className="activite-desc">
-                          {c.utilisateurs?.prenom} {c.utilisateurs?.nom} — {c.produit}
-                        </div>
-                        <div className="activite-time">{c.date_collecte ?? '—'}</div>
-                      </div>
+                  {loading ? (
+                    <div className="panel-empty">
+                      <Loader size={28} color="var(--text-dim)" />
+                      <span>Chargement...</span>
                     </div>
-                  ))}
-                  {commandes.length === 0 && !loading && (
+                  ) : commandes.length === 0 ? (
                     <div className="panel-empty">
                       <MailX size={28} color="var(--text-dim)" />
                       <span>Aucune activité récente</span>
                     </div>
+                  ) : (
+                    commandes.map((c: CommandeRecente) => (
+                      <div key={c.id} className="activite-row">
+                        <span className={`status-badge status--${statusType(c.statut)}`}>
+                          {statusLabel(c.statut)}
+                        </span>
+                        <span className="activite-row-produit">{c.produit}</span>
+                        <span className="activite-row-date">{c.date_collecte ?? '—'}</span>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
