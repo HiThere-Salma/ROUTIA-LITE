@@ -1,19 +1,12 @@
 import './App.css'
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList, LogOut } from 'lucide-react'
+import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList, LogOut, ShieldCheck } from 'lucide-react'
 import AgriculteurPage from './pages/AgriculteurPage'
 import TransporteurPage from './pages/TransporteurPage'
 import RoutePage from './pages/RoutePage'
 import LoginPage from './pages/LoginPage'
-
-const navItems = [
-  { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-  { label: 'Gestion des transporteurs', icon: <Truck size={16} /> },
-  { label: 'Gestion des agriculteurs', icon: <Sprout size={16} /> },
-  { label: 'Gestion des routes', icon: <Map size={16} /> },
-  { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
-]
+import AdminManagementPage from './pages/AdminManagementPage'
 
 type Admin = {
   id: string
@@ -22,6 +15,8 @@ type Admin = {
   prenom: string | null
   numero_tel: string | null
   adresse: string | null
+  nom_complet?: string | null
+  issuper?: boolean | null
   created_at: string
 }
 
@@ -76,7 +71,6 @@ function statusLabel(statut: string) {
 
 function App() {
   const [admin, setAdmin] = useState<Admin | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
   const [loginError, setLoginError] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
   const [active, setActive] = useState('Dashboard')
@@ -90,24 +84,24 @@ function App() {
   })
   const [loading, setLoading] = useState(true)
 
-  // Restore session on mount
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user?.email) {
-        const { data } = await supabase
-          .from('admin')
-          .select('*')
-          .eq('email', session.user.email)
-          .single()
-        if (data) setAdmin(data as Admin)
-      }
-      setAuthLoading(false)
-    })
-  }, [])
+  const navItems = [
+    { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
+    ...(admin?.issuper ? [{ label: 'Gestion des administrateurs', icon: <ShieldCheck size={16} /> }] : []),
+    { label: 'Gestion des transporteurs', icon: <Truck size={16} /> },
+    { label: 'Gestion des agriculteurs', icon: <Sprout size={16} /> },
+    { label: 'Gestion des routes', icon: <Map size={16} /> },
+    { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
+  ]
 
   useEffect(() => {
     if (admin) fetchDashboardData()
   }, [admin])
+
+  useEffect(() => {
+    if (!admin?.issuper && active === 'Gestion des administrateurs') {
+      setActive('Dashboard')
+    }
+  }, [admin, active])
 
   async function handleLogin(email: string, password: string) {
     setLoginError('')
@@ -180,14 +174,6 @@ function App() {
     { label: 'Livraisons complétées', value: stats.livraisonsCompletes, badge: '', badgeType: 'success', icon: <CircleCheckBig size={22} color="var(--green)" /> },
   ]
 
-  if (authLoading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
-        <Loader size={32} color="var(--green)" className="login-spinner" />
-      </div>
-    )
-  }
-
   if (!admin) {
     return <LoginPage onSubmit={handleLogin} error={loginError} loading={loginLoading} />
   }
@@ -217,7 +203,7 @@ function App() {
           <div className="user-chip">
             <div className="user-avatar">{admin.prenom?.[0] ?? 'A'}</div>
             <div>
-              <div className="user-name">{admin.prenom} {admin.nom}</div>
+              <div className="user-name">{admin.prenom} {admin.nom_complet ?? admin.nom}</div>
               <div className="user-role">{admin.email}</div>
             </div>
             <button className="icon-btn logout-btn" onClick={handleLogout} title="Déconnexion">
@@ -241,6 +227,7 @@ function App() {
           </div>
         </header>
 
+        {active === 'Gestion des administrateurs' && <AdminManagementPage currentAdmin={admin} />}
         {active === 'Gestion des agriculteurs' && <AgriculteurPage />}
         {active === 'Gestion des transporteurs' && <TransporteurPage />}
 
