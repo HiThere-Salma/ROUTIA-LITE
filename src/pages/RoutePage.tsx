@@ -3,7 +3,6 @@ import { Search, Truck, X, ChevronDown, ChevronLeft, ChevronRight, Check, Naviga
 import { getSupabaseClient } from '../lib/supabase/supabase.client'
 
 const MAPQUEST_KEY = import.meta.env.VITE_MAPQUEST_KEY
-const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY
 
 type RouteData = {
   id: number
