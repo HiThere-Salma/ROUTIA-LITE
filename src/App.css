@@ -136,6 +136,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
   background: var(--bg);
 }
 
@@ -459,6 +460,7 @@ body {
   flex-direction: column;
   gap: 22px;
   min-height: 0;
+  height: 0;
 }
 
 .admin-hero {
@@ -531,7 +533,19 @@ body {
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.admin-table-wrap::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg2);
 }
 
 .admin-table {
@@ -795,6 +809,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-height: 0;
+  height: 0;
 }
 
 .agri-toolbar {
@@ -3211,6 +3227,8 @@ body {
   padding: 10px 12px;
   cursor: pointer;
   border-bottom: 1px solid rgba(45, 45, 58, 0.8);
+}
+
 /* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
    Nouvelle Route Modal ΓÇö Premium Design
    ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
