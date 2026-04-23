@@ -956,6 +956,57 @@ body {
   border-color: var(--green-mid);
 }
 
+.address-autocomplete {
+  position: relative;
+  width: 100%;
+}
+
+.address-autocomplete input {
+  width: 100%;
+}
+
+.address-autocomplete-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 25;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+}
+
+.address-autocomplete-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-head);
+  font-size: 13px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.address-autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.address-autocomplete-item:hover,
+.address-autocomplete-item--active {
+  background: var(--bg3);
+}
+
+.address-autocomplete-state {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 8px 2px 0;
+}
+
 .admin-form-full {
   grid-column: 1 / -1;
 }

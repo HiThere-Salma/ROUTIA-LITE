@@ -112,7 +112,12 @@ function App() {
         password,
       })
       if (authError) {
-        setLoginError('Email ou mot de passe incorrect.')
+        const authMessage = authError.message.toLowerCase()
+        if (authMessage.includes('email not confirmed') || authMessage.includes('email not verified')) {
+          setLoginError('Email non verifie. Ouvrez le lien recu par email puis reconnectez-vous.')
+        } else {
+          setLoginError('Email ou mot de passe incorrect.')
+        }
         setLoginLoading(false)
         return
       }

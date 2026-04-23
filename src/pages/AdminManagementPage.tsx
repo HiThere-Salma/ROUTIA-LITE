@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Loader, Mail, MapPin, Phone, Search, Shield, UserPlus, X } from 'lucide-react'
+import AddressAutocompleteInput from '../components/AddressAutocompleteInput'
 import { supabase } from '../lib/supabase'
 
 type CurrentAdmin = {
@@ -149,6 +150,9 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
       const { data: signupData, error: signupError } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: form.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+        },
       })
 
       if (signupError || !signupData.user) {
@@ -218,7 +222,7 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
       <div className="admin-hero">
         <div>
           <h1 className="dashboard-title">Gestion des administrateurs</h1>
-          <p className="dashboard-sub">Le super admin peut créer des comptes admin pouvant se connecter à la plateforme.</p>
+          <p className="dashboard-sub">Le super admin peut créer des comptes admin. La connexion est possible apres verification email.</p>
         </div>
         <button className="btn-add-agri" onClick={() => setShowModal(true)}>
           <UserPlus size={16} />
@@ -381,10 +385,10 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
               </label>
               <label>
                 Adresse
-                <input
-                  type="text"
+                <AddressAutocompleteInput
                   value={form.adresse}
-                  onChange={(event) => setForm((current) => ({ ...current, adresse: event.target.value }))}
+                  onChange={(value) => setForm((current) => ({ ...current, adresse: value }))}
+                  placeholder="Commencez a saisir une adresse..."
                   required
                 />
               </label>
