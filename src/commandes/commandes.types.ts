@@ -29,6 +29,10 @@ export type CommandeMutationPayload = {
 	distance_estimee: number | null;
 	adresse_collecte: string;
 	adresse_livraison: string;
+	pickup_lat?: number | null;
+	pickup_lng?: number | null;
+	drop_lat?: number | null;
+	drop_lng?: number | null;
 	produit: string;
 	prix: number | null;
 	statut: CommandeStatus;

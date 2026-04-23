@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, Save } from "lucide-react";
 import CommandeStatusBadge from "./CommandeStatusBadge";
+import AddressAutocompleteInput from "./AddressAutocompleteInput";
 import {
   createNewCommande,
   getAgriculteurs,
@@ -91,7 +92,11 @@ function routeLabel(route: RouteOption): string {
   const transporteur = route.utilisateurs
     ? `${route.utilisateurs.nom} ${route.utilisateurs.prenom}`
     : "Transporteur inconnu";
-  return `${transporteur} | ID ${route.transporteur_id} | ${route.date || "Date inconnue"}`;
+  return `${route.date || "Date inconnue"} - ${transporteur}`;
+}
+
+function routeMeta(route: RouteOption): string {
+  return `ID transporteur ${route.transporteur_id} - Route ${route.id}`;
 }
 
 type CommandeEditModalProps = {
@@ -114,13 +119,20 @@ export default function CommandeEditModal({
   const [form, setForm] = useState<CommandeFormValues>({ ...EMPTY_FORM });
   const [agriculteurs, setAgriculteurs] = useState<AgriculteurOption[]>([]);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
+  const [routeSearch, setRouteSearch] = useState("");
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isCollecteAddressSelected, setIsCollecteAddressSelected] = useState(false);
+  const [isLivraisonAddressSelected, setIsLivraisonAddressSelected] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm(toFormValues(mode === "edit" ? commande : null));
+    const nextForm = toFormValues(mode === "edit" ? commande : null);
+    setForm(nextForm);
+    setRouteSearch("");
+    setIsCollecteAddressSelected(Boolean(nextForm.adresse_collecte));
+    setIsLivraisonAddressSelected(Boolean(nextForm.adresse_livraison));
     setSaveError(null);
   }, [commande, isOpen, mode]);
 
@@ -165,6 +177,20 @@ export default function CommandeEditModal({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
 
+  const filteredRoutes = useMemo(() => {
+    const query = routeSearch.trim().toLowerCase();
+    if (!query) return routes;
+
+    return routes.filter((route) => {
+      const transporteurNom = `${route.utilisateurs?.nom ?? ""} ${route.utilisateurs?.prenom ?? ""}`
+        .trim()
+        .toLowerCase();
+      const routeId = route.id.toLowerCase();
+
+      return transporteurNom.includes(query) || routeId.includes(query);
+    });
+  }, [routeSearch, routes]);
+
   if (!isOpen) return null;
 
   const rawId = asString(commande?.id ?? commande?.id_commande ?? commande?.commande_id);
@@ -174,12 +200,13 @@ export default function CommandeEditModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleRouteSelection = (routeId: string, checked: boolean) => {
-    handleChange("route_id", checked ? routeId : null);
+  const handleRouteSelection = (routeId: string) => {
+    handleChange("route_id", routeId || null);
   };
 
   const isEditMode = mode === "edit";
   const title = isEditMode ? "Modifier la commande" : "Nouvelle commande";
+  const selectedRoute = routes.find((route) => route.id === form.route_id) ?? null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +216,10 @@ export default function CommandeEditModal({
     }
     if (!form.date_collecte || !form.adresse_collecte || !form.adresse_livraison || !form.produit) {
       setSaveError("Veuillez remplir les champs obligatoires de la commande.");
+      return;
+    }
+    if (!isCollecteAddressSelected || !isLivraisonAddressSelected) {
+      setSaveError("Veuillez choisir les adresses dans les suggestions Mapbox avant de sauvegarder.");
       return;
     }
 
@@ -293,31 +324,31 @@ export default function CommandeEditModal({
               />
             </div>
 
-            <div className="cmd-modal-field cmd-edit-span-2">
-              <label className="cmd-modal-field-label" htmlFor="cmd-adresse-collecte">Adresse collecte</label>
-              <input
-                id="cmd-adresse-collecte"
-                className="cmd-edit-input"
-                type="text"
-                value={form.adresse_collecte}
-                onChange={(e) => handleChange("adresse_collecte", e.target.value)}
-                required
-                disabled={saving}
-              />
-            </div>
+            <AddressAutocompleteInput
+              id="cmd-adresse-collecte"
+              label="Adresse collecte"
+              value={form.adresse_collecte}
+              onChange={(value) => handleChange("adresse_collecte", value)}
+              isSelected={isCollecteAddressSelected}
+              selectionRequired
+              onSelectionStateChange={setIsCollecteAddressSelected}
+              required
+              disabled={saving}
+              placeholder="Saisir l'adresse de collecte"
+            />
 
-            <div className="cmd-modal-field cmd-edit-span-2">
-              <label className="cmd-modal-field-label" htmlFor="cmd-adresse-livraison">Adresse livraison</label>
-              <input
-                id="cmd-adresse-livraison"
-                className="cmd-edit-input"
-                type="text"
-                value={form.adresse_livraison}
-                onChange={(e) => handleChange("adresse_livraison", e.target.value)}
-                required
-                disabled={saving}
-              />
-            </div>
+            <AddressAutocompleteInput
+              id="cmd-adresse-livraison"
+              label="Adresse livraison"
+              value={form.adresse_livraison}
+              onChange={(value) => handleChange("adresse_livraison", value)}
+              isSelected={isLivraisonAddressSelected}
+              selectionRequired
+              onSelectionStateChange={setIsLivraisonAddressSelected}
+              required
+              disabled={saving}
+              placeholder="Saisir l'adresse de livraison"
+            />
 
             <div className="cmd-modal-field cmd-edit-span-2">
               <label className="cmd-modal-field-label" htmlFor="cmd-produit">Produit</label>
@@ -372,20 +403,57 @@ export default function CommandeEditModal({
               <p className="cmd-route-association-empty">Aucune route disponible.</p>
             ) : (
               <div className="cmd-route-association-list">
-                {routes.map((route) => {
+                <input
+                  className="cmd-edit-input"
+                  type="text"
+                  value={routeSearch}
+                  onChange={(e) => setRouteSearch(e.target.value)}
+                  placeholder="Rechercher route (ID) ou transporteur"
+                  disabled={saving}
+                />
+
+                <label className="cmd-route-association-item cmd-route-association-item--none">
+                  <input
+                    type="radio"
+                    name="cmd-route-choice"
+                    checked={!form.route_id}
+                    onChange={() => handleRouteSelection("")}
+                    disabled={saving}
+                  />
+                  <span className="cmd-route-association-copy">
+                    <span className="cmd-route-association-primary">Aucune route</span>
+                    <span className="cmd-route-association-secondary">La commande reste non associee.</span>
+                  </span>
+                </label>
+
+                {filteredRoutes.map((route) => {
                   const checked = form.route_id === route.id;
                   return (
                     <label key={route.id} className="cmd-route-association-item">
                       <input
-                        type="checkbox"
+                        type="radio"
+                        name="cmd-route-choice"
                         checked={checked}
-                        onChange={(e) => handleRouteSelection(route.id, e.target.checked)}
+                        onChange={() => handleRouteSelection(route.id)}
                         disabled={saving}
                       />
-                      <span>{routeLabel(route)}</span>
+                      <span className="cmd-route-association-copy">
+                        <span className="cmd-route-association-primary">{routeLabel(route)}</span>
+                        <span className="cmd-route-association-secondary">{routeMeta(route)}</span>
+                      </span>
                     </label>
                   );
                 })}
+
+                {filteredRoutes.length === 0 && (
+                  <p className="cmd-route-association-empty">Aucune route ne correspond a la recherche.</p>
+                )}
+
+                {form.route_id && (
+                  <p className="cmd-route-association-help">
+                    Route selectionnee: {selectedRoute ? routeLabel(selectedRoute) : "Inconnue"}
+                  </p>
+                )}
               </div>
             )}
             <p className="cmd-route-association-help">Une seule route peut etre associee a la commande.</p>

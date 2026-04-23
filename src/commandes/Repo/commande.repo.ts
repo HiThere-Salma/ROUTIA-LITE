@@ -7,7 +7,10 @@ import type {
 
 export const fetchAllCommandes = async () => {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from("vue_commandes").select("*");
+  const { data, error } = await supabase
+    .from("vue_commandes")
+    .select("*")
+    .order("date_creation", { ascending: false });
   console.log("Fetched commandes:", data);
 
   if (error) {

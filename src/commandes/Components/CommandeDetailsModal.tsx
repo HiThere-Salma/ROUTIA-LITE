@@ -15,53 +15,32 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-const LABEL_MAP: Record<string, string> = {
-  id: "ID",
-  id_commande: "ID Commande",
-  commande_id: "ID Commande",
-  reference: "Référence",
-  statut: "Statut",
-  status: "Statut",
-  etat: "État",
-  date: "Date",
-  date_collecte: "Date de collecte",
-  created_at: "Date de création",
-  heure: "Heure",
-  heure_collecte: "Heure de collecte",
-  heure_livraison: "Heure de livraison",
-  time: "Heure",
-  collecte: "Adresse de collecte",
-  adresse_collecte: "Adresse de collecte",
-  origine: "Origine",
-  livraison: "Adresse de livraison",
-  adresse_livraison: "Adresse de livraison",
-  destination: "Destination",
-  distance_estimee: "Distance estimée",
-  trajet: "Trajet",
-  distance: "Distance",
-  distance_km: "Distance (km)",
-  kilometrage: "Kilométrage",
-  temps_estime: "Temps estimé",
-  duree: "Durée",
-  etat_trajet: "État du trajet",
-  nature: "Nature",
-  produit: "Produit",
-  type_produit: "Type de produit",
-  transporteur: "Transporteur",
-  nom_transporteur: "Nom transporteur",
-  agriculteur: "Agriculteur",
-  nom_agriculteur: "Nom agriculteur",
-  poids: "Poids",
-  volume: "Volume",
-  quantite: "Quantité",
-  prix: "Prix",
-  montant: "Montant",
-  notes: "Notes",
-  commentaire: "Commentaire",
-};
+function firstNonEmpty(...values: unknown[]): string {
+  for (const value of values) {
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return String(value);
+    }
+  }
+  return "-";
+}
 
-function getLabel(key: string): string {
-  return LABEL_MAP[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function normalizeText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function fullName(firstName: unknown, lastName: unknown): string {
+  const first = normalizeText(firstName);
+  const last = normalizeText(lastName);
+  const joined = [first, last].filter(Boolean).join(" ").trim();
+  return joined || "-";
+}
+
+function formatPrice(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return formatValue(value);
+  return new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount);
 }
 
 const STATUS_KEYS = ["statut", "status", "etat"];
@@ -80,34 +59,41 @@ export default function CommandeDetailsModal({ commande, commandeId, onClose }: 
   const statusKey = STATUS_KEYS.find((k) => commande[k] !== undefined && commande[k] !== null && commande[k] !== "");
   const statusValue = statusKey ? String(commande[statusKey]) : "En attente";
 
-  const requiredEntries: Array<[string, unknown]> = [
-    ["date_collecte", commande.date_collecte ?? commande.date ?? commande.created_at],
-    ["heure_livraison", commande.heure_livraison ?? commande.heure ?? commande.heure_collecte ?? commande.time],
-    ["adresse_collecte", commande.adresse_collecte ?? commande.collecte ?? commande.origine],
-    ["adresse_livraison", commande.adresse_livraison ?? commande.livraison ?? commande.destination],
-    [
-      "distance_estimee",
-      commande.distance_estimee ??
-        commande.distance ??
-        commande.distance_km ??
-        commande.kilometrage ??
-        commande.temps_estime ??
-        commande.duree,
-    ],
-  ];
-
-  const requiredKeys = new Set(requiredEntries.map(([key]) => key));
-
-  const entries = [
-    ...requiredEntries,
-    ...Object.entries(commande).filter(
-      ([key]) => (!STATUS_KEYS.includes(key) || key === statusKey) && !requiredKeys.has(key)
-    ),
-  ];
+  const produit = firstNonEmpty(commande.produit, commande.nature, commande.type_produit);
+  const agriculteurNomComplet = fullName(
+    commande.prenom_agriculteur ?? commande.agriculteur_prenom,
+    commande.nom_agriculteur ?? commande.agriculteur_nom
+  );
+  const transporteurNomComplet = fullName(
+    commande.prenom_transporteur ?? commande.transporteur_prenom,
+    commande.nom_transporteur ?? commande.transporteur_nom
+  );
+  const agriculteur =
+    agriculteurNomComplet !== "-"
+      ? agriculteurNomComplet
+      : firstNonEmpty(commande.agriculteur, commande.nom_complet_agriculteur, commande.agriculteur_name);
+  const transporteur =
+    transporteurNomComplet !== "-"
+      ? transporteurNomComplet
+      : firstNonEmpty(commande.transporteur, commande.nom_complet_transporteur, commande.transporteur_name);
+  const routeId = firstNonEmpty(commande.route_id, commande.id_route);
+  const dateCollecte = firstNonEmpty(commande.date_collecte, commande.date, commande.created_at);
+  const heureLivraison = firstNonEmpty(commande.heure_livraison, commande.heure, commande.heure_collecte, commande.time);
+  const adresseCollecte = firstNonEmpty(commande.adresse_collecte, commande.collecte, commande.origine);
+  const adresseLivraison = firstNonEmpty(commande.adresse_livraison, commande.livraison, commande.destination);
+  const distance = firstNonEmpty(
+    commande.distance_estimee,
+    commande.distance,
+    commande.distance_km,
+    commande.kilometrage,
+    commande.temps_estime,
+    commande.duree
+  );
+  const prix = formatPrice(commande.prix ?? commande.montant);
 
   return (
     <div className="cmd-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="cmd-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="cmd-modal cmd-modal--details" onClick={(e) => e.stopPropagation()}>
         <div className="cmd-modal-header">
           <div className="cmd-modal-title-wrap">
             <h2 className="cmd-modal-title">Détails de la commande</h2>
@@ -121,14 +107,71 @@ export default function CommandeDetailsModal({ commande, commandeId, onClose }: 
           </div>
         </div>
 
-        <div className="cmd-modal-body">
-          <div className="cmd-modal-grid">
-            {entries.map(([key, value]) => (
-              <div className="cmd-modal-field" key={key}>
-                <span className="cmd-modal-field-label">{getLabel(key)}</span>
-                <span className="cmd-modal-field-value">{formatValue(value)}</span>
+        <div className="cmd-modal-body cmd-modal-body--details">
+          <div className="cmd-modal-details-layout">
+            <section className="cmd-modal-details-section">
+              <h3 className="cmd-modal-details-section-title">Informations générales</h3>
+              <div className="cmd-modal-details-row">
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Produit</span>
+                  <span className="cmd-modal-details-value">{produit}</span>
+                </div>
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Prix</span>
+                  <span className="cmd-modal-details-value cmd-modal-details-value--mono">{prix}</span>
+                </div>
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Distance estimée</span>
+                  <span className="cmd-modal-details-value">{distance}</span>
+                </div>
               </div>
-            ))}
+            </section>
+
+            <section className="cmd-modal-details-section">
+              <h3 className="cmd-modal-details-section-title">Planification</h3>
+              <div className="cmd-modal-details-row">
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Date de collecte</span>
+                  <span className="cmd-modal-details-value">{dateCollecte}</span>
+                </div>
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Heure de livraison</span>
+                  <span className="cmd-modal-details-value">{heureLivraison}</span>
+                </div>
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Route associée</span>
+                  <span className="cmd-modal-details-value cmd-modal-details-value--mono">{routeId}</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="cmd-modal-details-section">
+              <h3 className="cmd-modal-details-section-title">Participants</h3>
+              <div className="cmd-modal-details-row">
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Agriculteur</span>
+                  <span className="cmd-modal-details-value">{agriculteur}</span>
+                </div>
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Transporteur</span>
+                  <span className="cmd-modal-details-value">{transporteur}</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="cmd-modal-details-section">
+              <h3 className="cmd-modal-details-section-title">Adresses</h3>
+              <div className="cmd-modal-details-row cmd-modal-details-row--stack">
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Collecte</span>
+                  <span className="cmd-modal-details-value cmd-modal-details-value--address">{adresseCollecte}</span>
+                </div>
+                <div className="cmd-modal-details-item">
+                  <span className="cmd-modal-details-key">Livraison</span>
+                  <span className="cmd-modal-details-value cmd-modal-details-value--address">{adresseLivraison}</span>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </div>

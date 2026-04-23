@@ -5,6 +5,7 @@ import { deleteCommande } from "../Repo/commande.repo";
 import CommandesTable from "../Components/CommandesTable";
 import CommandeDetailsModal from "../Components/CommandeDetailsModal";
 import CommandeEditModal from "../Components/CommandeEditModal";
+import CommandeDeleteModal from "../Components/CommandeDeleteModal";
 import type { CommandeData } from "../commandes.types";
 
 const ITEMS_PER_PAGE = 10;
@@ -63,6 +64,8 @@ export default function CommandesPage() {
   const [editCommandeId, setEditCommandeId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editModalMode, setEditModalMode] = useState<"create" | "edit">("edit");
+  const [deleteTarget, setDeleteTarget] = useState<{ commandeId: string; commande: CommandeData } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadCommandes = useCallback(async () => {
     setLoading(true);
@@ -92,8 +95,8 @@ export default function CommandesPage() {
     loadCommandes();
   }, [loadCommandes]);
 
-  const getStatus = (commande: CommandeData) =>
-    formatStatusLabel(commande.statut ?? commande.status ?? commande.etat ?? commande.etat_commande ?? commande.etat_livraison);
+  const getStatus = useCallback((commande: CommandeData) =>
+    formatStatusLabel(commande.statut ?? commande.status ?? commande.etat ?? commande.etat_commande ?? commande.etat_livraison), []);
 
   const getPrimaryFields = (commande: CommandeData) => ({
     date_collecte: asText(commande.date_collecte ?? commande.date ?? commande.created_at),
@@ -101,14 +104,6 @@ export default function CommandesPage() {
     adresse_collecte: asText(commande.adresse_collecte ?? commande.collecte ?? commande.origine),
     adresse_livraison: asText(commande.adresse_livraison ?? commande.livraison ?? commande.destination),
   });
-
-  const getCollecteLivraison = (commande: CommandeData) => ({
-    collecte: asText(commande.collecte ?? commande.adresse_collecte ?? commande.origine),
-    livraison: asText(commande.livraison ?? commande.adresse_livraison ?? commande.destination),
-  });
-
-  const getNature = (commande: CommandeData) =>
-    asText(commande.nature ?? commande.produit ?? commande.type_produit, "-");
 
   const statusFilterOptions = useMemo(() => {
     const uniqueStatuses = new Set<string>();
@@ -134,17 +129,16 @@ export default function CommandesPage() {
     const searchLower = search.toLowerCase().trim();
 
     return commandes.filter((commande, index) => {
-      const commandeId = asCommandeId(commande, index).toLowerCase();
-      const produit = getNature(commande).toLowerCase();
-      const collecte = getCollecteLivraison(commande).collecte.toLowerCase();
-      const livraison = getCollecteLivraison(commande).livraison.toLowerCase();
-
+      // Recherche sur toutes les colonnes retournées par vue_commandes
+      // (incluant nom/prénom agriculteur, transporteur, etc. injectés par la vue)
       const matchSearch =
         searchLower.length === 0 ||
-        commandeId.includes(searchLower) ||
-        produit.includes(searchLower) ||
-        collecte.includes(searchLower) ||
-        livraison.includes(searchLower);
+        Object.values(commande).some((val) => {
+          if (val === null || val === undefined) return false;
+          if (typeof val === "object") return false;
+          return String(val).toLowerCase().includes(searchLower);
+        }) ||
+        asCommandeId(commande, index).toLowerCase().includes(searchLower);
 
       const statusValue = getStatus(commande).toLowerCase();
       const matchFilter = selectedStatusFilter === FILTER_ALL || statusValue === selectedStatusFilter.toLowerCase();
@@ -210,18 +204,26 @@ export default function CommandesPage() {
   };
 
   const onDeleteCommande = (commandeId: string, commande: CommandeData) => {
-    if (!window.confirm(`Supprimer la commande #${commandeId} ? Cette action est irreversible.`)) return;
+    setDeleteTarget({ commandeId, commande });
+  };
+
+  const onConfirmDelete = () => {
+    if (!deleteTarget) return;
+    const { commandeId, commande } = deleteTarget;
     const rawId = String(commande.id ?? commande.id_commande ?? commande.commande_id ?? "");
     if (!rawId) return;
+    setDeleting(true);
     deleteCommande(rawId)
       .then(() => {
         setCommandes((prev) =>
           prev.filter((c, i) => asCommandeId(c, i) !== commandeId)
         );
+        setDeleteTarget(null);
       })
       .catch((err: unknown) => {
-        alert(err instanceof Error ? err.message : "Erreur lors de la suppression.");
-      });
+        console.error(err);
+      })
+      .finally(() => setDeleting(false));
   };
 
   return (
@@ -354,6 +356,14 @@ export default function CommandesPage() {
             commandeId={editModalMode === "edit" ? editCommandeId : null}
             onClose={onCloseEditModal}
             onSaved={onSaved}
+          />
+
+          <CommandeDeleteModal
+            isOpen={!!deleteTarget}
+            commandeId={deleteTarget?.commandeId ?? null}
+            onConfirm={onConfirmDelete}
+            onCancel={() => setDeleteTarget(null)}
+            deleting={deleting}
           />
         </>
       )}
