@@ -12,12 +12,11 @@ serve(async (req) => {
 
   const { to, phone, transporteurName, routeDate, mapsLink } = await req.json()
 
-  // 👇 log pour confirmer ce qui arrive
-  console.log('Payload reçu:', { to, phone, transporteurName, routeDate })
+  console.log('Payload recu:', { to, phone, transporteurName, routeDate })
 
   const results = await Promise.allSettled([
-    // EMAIL
-    fetch('https://api.resend.com/emails', {
+    // EMAIL — skippé si to est null
+    to ? fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
@@ -38,9 +37,9 @@ serve(async (req) => {
           </div>
         `,
       }),
-    }),
+    }) : Promise.resolve(null),
 
-    // SMS
+    // SMS — skippé si phone est null
     phone ? (async () => {
       const tinyRes = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(mapsLink)}`)
       const shortUrl = await tinyRes.text()

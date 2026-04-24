@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, Truck, X, ChevronDown, ChevronLeft, ChevronRight, Check, Navigation, AlertTriangle, Loader, MapPin, Calendar, Clock, Route, Pencil, Trash2 } from 'lucide-react'
+import { Search, Truck, X, ChevronDown, ChevronLeft, ChevronRight, Check, Navigation, AlertTriangle, Loader, MapPin, Calendar, Clock, Route, Pencil, Trash2, Mail, Phone } from 'lucide-react'
 import { getSupabaseClient } from '../lib/supabase/supabase.client'
 
 const MAPQUEST_KEY = import.meta.env.VITE_MAPQUEST_KEY
-const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY
 
 type RouteData = {
   id: number
@@ -76,11 +75,12 @@ export default function RoutePage() {
   const timeStartRef = useRef<HTMLDivElement>(null)
   const timeEndRef = useRef<HTMLDivElement>(null)
 
-  // Delete state
   const [deleteRouteId, setDeleteRouteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // Navigation (MapQuest) state
+  const [sendingEmail, setSendingEmail] = useState<number | null>(null)
+  const [sendingSms, setSendingSms] = useState<number | null>(null)
+
   const [navModal, setNavModal] = useState<NavModal>({ type: 'none' })
   const [navInput, setNavInput] = useState('')
   const [loadingRoute, setLoadingRoute] = useState<number | null>(null)
@@ -181,19 +181,18 @@ export default function RoutePage() {
     return `https://www.google.com/maps/dir/${allAddresses.map(a => encodeURIComponent(a)).join('/')}`
   }
 
+  // Used when modal is open (transporteurs already loaded in state)
   async function sendRouteEmail(transporteurId: string, routeDate: string, commandeIds: string[]) {
     const transporteur = transporteurs.find(t => t.id === transporteurId)
     if (!transporteur) return
-
     const mapsLink = await buildMapsLink(commandeIds)
     if (!mapsLink) return
-
     try {
       const supabase = getSupabaseClient()
       await supabase.functions.invoke('send-route-email', {
         body: {
           to: transporteur.email,
-          phone: transporteur.telephone ?? null, // ← ajouter phone dans TransporteurOption
+          phone: transporteur.telephone ?? null,
           transporteurName: `${transporteur.prenom} ${transporteur.nom}`,
           routeDate,
           mapsLink,
@@ -201,6 +200,63 @@ export default function RoutePage() {
       })
     } catch (err) {
       console.error('Erreur envoi notification:', err)
+    }
+  }
+
+  // Used from table buttons — fetches transporteur fresh from DB
+  async function handleSendEmail(routeId: number, transporteurId: string, routeDate: string, commandeIds: string[]) {
+    setSendingEmail(routeId)
+    try {
+      const supabase = getSupabaseClient()
+      const { data } = await supabase
+        .from('utilisateurs')
+        .select('id, nom, prenom, email, telephone')
+        .eq('id', transporteurId)
+        .single()
+      if (!data) return
+      const mapsLink = await buildMapsLink(commandeIds)
+      if (!mapsLink) return
+      await supabase.functions.invoke('send-route-email', {
+        body: {
+          to: data.email,
+          phone: null,
+          transporteurName: `${data.prenom} ${data.nom}`,
+          routeDate,
+          mapsLink,
+        },
+      })
+    } catch (err) {
+      console.error('Erreur envoi email:', err)
+    } finally {
+      setSendingEmail(null)
+    }
+  }
+
+  async function handleSendSms(routeId: number, transporteurId: string, routeDate: string, commandeIds: string[]) {
+    setSendingSms(routeId)
+    try {
+      const supabase = getSupabaseClient()
+      const { data } = await supabase
+        .from('utilisateurs')
+        .select('id, nom, prenom, email, telephone')
+        .eq('id', transporteurId)
+        .single()
+      if (!data) return
+      const mapsLink = await buildMapsLink(commandeIds)
+      if (!mapsLink) return
+      await supabase.functions.invoke('send-route-email', {
+        body: {
+          to: null,
+          phone: (data as TransporteurOption).telephone ?? null,
+          transporteurName: `${data.prenom} ${data.nom}`,
+          routeDate,
+          mapsLink,
+        },
+      })
+    } catch (err) {
+      console.error('Erreur envoi SMS:', err)
+    } finally {
+      setSendingSms(null)
     }
   }
 
@@ -293,16 +349,8 @@ export default function RoutePage() {
     setDeleting(true)
     try {
       const supabase = getSupabaseClient()
-      // Unassign commandes from this route
-      await supabase
-        .from('commandes')
-        .update({ route_id: null })
-        .eq('route_id', deleteRouteId)
-      // Delete the route
-      const { error } = await supabase
-        .from('routes')
-        .delete()
-        .eq('id', deleteRouteId)
+      await supabase.from('commandes').update({ route_id: null }).eq('route_id', deleteRouteId)
+      const { error } = await supabase.from('routes').delete().eq('id', deleteRouteId)
       if (error) throw error
       setDeleteRouteId(null)
       setLoading(true)
@@ -548,6 +596,7 @@ export default function RoutePage() {
               <th>Horaires</th>
               <th>Distance</th>
               <th>Commandes</th>
+              <th>Envoyer</th>
               <th>Statut</th>
               <th></th>
             </tr>
@@ -555,14 +604,14 @@ export default function RoutePage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="rt-empty">
+                <td colSpan={9} className="rt-empty">
                   <Loader size={18} className="nv-spin" style={{ marginBottom: 8 }} />
                   <span>Chargement des routes…</span>
                 </td>
               </tr>
             ) : paginated.length === 0 ? (
               <tr>
-                <td colSpan={8} className="rt-empty">
+                <td colSpan={9} className="rt-empty">
                   <Route size={20} style={{ marginBottom: 6, opacity: 0.4 }} />
                   <span>Aucune route trouvée</span>
                 </td>
@@ -577,9 +626,7 @@ export default function RoutePage() {
                     </td>
                     <td>
                       <div className="rt-transporteur-cell">
-                        <span className="rt-avatar">
-                          <Truck size={14} />
-                        </span>
+                        <span className="rt-avatar"><Truck size={14} /></span>
                         <span>{r.transporteur}</span>
                       </div>
                     </td>
@@ -603,6 +650,26 @@ export default function RoutePage() {
                       <span className="rt-commandes-badge">{r.commandes}</span>
                     </td>
                     <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="rt-send-btn"
+                          title="Envoyer email"
+                          disabled={sendingEmail === r.id}
+                          onClick={() => handleSendEmail(r.id, r.transporteur_id, r.date, r.commandeIds)}
+                        >
+                          {sendingEmail === r.id ? <Loader size={13} className="nv-spin" /> : <Mail size={13} />}
+                        </button>
+                        <button
+                          className="rt-send-btn"
+                          title="Envoyer SMS"
+                          disabled={sendingSms === r.id}
+                          onClick={() => handleSendSms(r.id, r.transporteur_id, r.date, r.commandeIds)}
+                        >
+                          {sendingSms === r.id ? <Loader size={13} className="nv-spin" /> : <Phone size={13} />}
+                        </button>
+                      </div>
+                    </td>
+                    <td>
                       <span className={`rt-status-pill ${st.className}`}>
                         <span className="rt-status-dot" />
                         {st.label}
@@ -610,11 +677,7 @@ export default function RoutePage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button
-                          className="rt-nav-btn"
-                          title="Modifier"
-                          onClick={() => handleEdit(r)}
-                        >
+                        <button className="rt-nav-btn" title="Modifier" onClick={() => handleEdit(r)}>
                           <Pencil size={14} />
                         </button>
                         <button
@@ -671,12 +734,7 @@ export default function RoutePage() {
               <div className="nv-field">
                 <span className="nv-label">Transporteur (valide uniquement)</span>
                 <div className="nv-select-wrap">
-                  <select
-                    className="nv-select"
-                    value={formTransporteurId}
-                    onChange={(e) => setFormTransporteurId(e.target.value)}
-                    required
-                  >
+                  <select className="nv-select" value={formTransporteurId} onChange={(e) => setFormTransporteurId(e.target.value)} required>
                     <option value="">Sélectionner un transporteur</option>
                     {transporteurs.map((t) => (
                       <option key={t.id} value={t.id}>{t.nom} {t.prenom}</option>
@@ -690,11 +748,7 @@ export default function RoutePage() {
                 <div className="nv-field">
                   <span className="nv-label">Statut</span>
                   <div className="nv-select-wrap">
-                    <select
-                      className="nv-select"
-                      value={formStatut}
-                      onChange={(e) => setFormStatut(e.target.value as RouteData['statut'])}
-                    >
+                    <select className="nv-select" value={formStatut} onChange={(e) => setFormStatut(e.target.value as RouteData['statut'])}>
                       {Object.entries(STATUT_MAP).map(([key, { label }]) => (
                         <option key={key} value={key}>{label}</option>
                       ))}
@@ -707,26 +761,16 @@ export default function RoutePage() {
               <div className="nv-row-3">
                 <div className="nv-field" ref={calRef}>
                   <span className="nv-label">Date</span>
-                  <button
-                    type="button"
-                    className="nv-picker-btn"
-                    onClick={() => { setShowCalendar((o) => !o); setShowTimeStart(false); setShowTimeEnd(false) }}
-                  >
-                    <span className={formDate ? 'nv-picker-value' : 'nv-picker-placeholder'}>
-                      {formDate ? formatDisplayDate(formDate) : 'jj/mm/aaaa'}
-                    </span>
+                  <button type="button" className="nv-picker-btn" onClick={() => { setShowCalendar((o) => !o); setShowTimeStart(false); setShowTimeEnd(false) }}>
+                    <span className={formDate ? 'nv-picker-value' : 'nv-picker-placeholder'}>{formDate ? formatDisplayDate(formDate) : 'jj/mm/aaaa'}</span>
                     <Calendar size={14} className="nv-picker-icon" />
                   </button>
                   {showCalendar && (
                     <div className="nv-calendar">
                       <div className="nv-cal-nav">
-                        <button type="button" onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }}>
-                          <ChevronLeft size={14} />
-                        </button>
+                        <button type="button" onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }}><ChevronLeft size={14} /></button>
                         <span className="nv-cal-title">{MONTHS[calMonth]} {calYear}</span>
-                        <button type="button" onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }}>
-                          <ChevronRight size={14} />
-                        </button>
+                        <button type="button" onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }}><ChevronRight size={14} /></button>
                       </div>
                       <div className="nv-cal-grid">
                         {DAYS.map((d) => <span key={d} className="nv-cal-dayname">{d}</span>)}
@@ -736,12 +780,7 @@ export default function RoutePage() {
                           const isSelected = iso === formDate
                           const isToday = iso === new Date().toISOString().slice(0, 10)
                           return (
-                            <button
-                              key={i}
-                              type="button"
-                              className={`nv-cal-day${isSelected ? ' nv-cal-day--sel' : ''}${isToday ? ' nv-cal-day--today' : ''}`}
-                              onClick={() => selectDate(day)}
-                            >
+                            <button key={i} type="button" className={`nv-cal-day${isSelected ? ' nv-cal-day--sel' : ''}${isToday ? ' nv-cal-day--today' : ''}`} onClick={() => selectDate(day)}>
                               {day}
                             </button>
                           )
@@ -753,14 +792,8 @@ export default function RoutePage() {
 
                 <div className="nv-field" ref={timeStartRef}>
                   <span className="nv-label">Heure début</span>
-                  <button
-                    type="button"
-                    className="nv-picker-btn"
-                    onClick={() => { setShowTimeStart((o) => !o); setShowTimeEnd(false); setShowCalendar(false) }}
-                  >
-                    <span className={formHeureDepart ? 'nv-picker-value' : 'nv-picker-placeholder'}>
-                      {formHeureDepart || '--:--'}
-                    </span>
+                  <button type="button" className="nv-picker-btn" onClick={() => { setShowTimeStart((o) => !o); setShowTimeEnd(false); setShowCalendar(false) }}>
+                    <span className={formHeureDepart ? 'nv-picker-value' : 'nv-picker-placeholder'}>{formHeureDepart || '--:--'}</span>
                     <Clock size={14} className="nv-picker-icon" />
                   </button>
                   {showTimeStart && (
@@ -770,16 +803,8 @@ export default function RoutePage() {
                           <span className="nv-time-col-title">H</span>
                           <div className="nv-time-list">
                             {HOURS.map((h) => (
-                              <button
-                                key={h}
-                                type="button"
-                                className={`nv-time-item${formHeureDepart.startsWith(String(h).padStart(2, '0') + ':') ? ' nv-time-item--sel' : ''}`}
-                                onClick={() => {
-                                  const curMin = formHeureDepart ? parseInt(formHeureDepart.split(':')[1]) || 0 : 0
-                                  selectTime(setFormHeureDepart, setShowTimeStart, h, curMin)
-                                  setShowTimeStart(true)
-                                }}
-                              >
+                              <button key={h} type="button" className={`nv-time-item${formHeureDepart.startsWith(String(h).padStart(2, '0') + ':') ? ' nv-time-item--sel' : ''}`}
+                                onClick={() => { const curMin = formHeureDepart ? parseInt(formHeureDepart.split(':')[1]) || 0 : 0; selectTime(setFormHeureDepart, setShowTimeStart, h, curMin); setShowTimeStart(true) }}>
                                 {String(h).padStart(2, '0')}
                               </button>
                             ))}
@@ -789,15 +814,8 @@ export default function RoutePage() {
                           <span className="nv-time-col-title">Min</span>
                           <div className="nv-time-list">
                             {MINUTES.map((m) => (
-                              <button
-                                key={m}
-                                type="button"
-                                className={`nv-time-item${formHeureDepart.endsWith(':' + String(m).padStart(2, '0')) ? ' nv-time-item--sel' : ''}`}
-                                onClick={() => {
-                                  const curH = formHeureDepart ? parseInt(formHeureDepart.split(':')[0]) || 0 : 0
-                                  selectTime(setFormHeureDepart, setShowTimeStart, curH, m)
-                                }}
-                              >
+                              <button key={m} type="button" className={`nv-time-item${formHeureDepart.endsWith(':' + String(m).padStart(2, '0')) ? ' nv-time-item--sel' : ''}`}
+                                onClick={() => { const curH = formHeureDepart ? parseInt(formHeureDepart.split(':')[0]) || 0 : 0; selectTime(setFormHeureDepart, setShowTimeStart, curH, m) }}>
                                 {String(m).padStart(2, '0')}
                               </button>
                             ))}
@@ -810,14 +828,8 @@ export default function RoutePage() {
 
                 <div className="nv-field" ref={timeEndRef}>
                   <span className="nv-label">Heure fin</span>
-                  <button
-                    type="button"
-                    className="nv-picker-btn"
-                    onClick={() => { setShowTimeEnd((o) => !o); setShowTimeStart(false); setShowCalendar(false) }}
-                  >
-                    <span className={formHeureFin ? 'nv-picker-value' : 'nv-picker-placeholder'}>
-                      {formHeureFin || '--:--'}
-                    </span>
+                  <button type="button" className="nv-picker-btn" onClick={() => { setShowTimeEnd((o) => !o); setShowTimeStart(false); setShowCalendar(false) }}>
+                    <span className={formHeureFin ? 'nv-picker-value' : 'nv-picker-placeholder'}>{formHeureFin || '--:--'}</span>
                     <Clock size={14} className="nv-picker-icon" />
                   </button>
                   {showTimeEnd && (
@@ -827,16 +839,8 @@ export default function RoutePage() {
                           <span className="nv-time-col-title">H</span>
                           <div className="nv-time-list">
                             {HOURS.map((h) => (
-                              <button
-                                key={h}
-                                type="button"
-                                className={`nv-time-item${formHeureFin.startsWith(String(h).padStart(2, '0') + ':') ? ' nv-time-item--sel' : ''}`}
-                                onClick={() => {
-                                  const curMin = formHeureFin ? parseInt(formHeureFin.split(':')[1]) || 0 : 0
-                                  selectTime(setFormHeureFin, setShowTimeEnd, h, curMin)
-                                  setShowTimeEnd(true)
-                                }}
-                              >
+                              <button key={h} type="button" className={`nv-time-item${formHeureFin.startsWith(String(h).padStart(2, '0') + ':') ? ' nv-time-item--sel' : ''}`}
+                                onClick={() => { const curMin = formHeureFin ? parseInt(formHeureFin.split(':')[1]) || 0 : 0; selectTime(setFormHeureFin, setShowTimeEnd, h, curMin); setShowTimeEnd(true) }}>
                                 {String(h).padStart(2, '0')}
                               </button>
                             ))}
@@ -846,15 +850,8 @@ export default function RoutePage() {
                           <span className="nv-time-col-title">Min</span>
                           <div className="nv-time-list">
                             {MINUTES.map((m) => (
-                              <button
-                                key={m}
-                                type="button"
-                                className={`nv-time-item${formHeureFin.endsWith(':' + String(m).padStart(2, '0')) ? ' nv-time-item--sel' : ''}`}
-                                onClick={() => {
-                                  const curH = formHeureFin ? parseInt(formHeureFin.split(':')[0]) || 0 : 0
-                                  selectTime(setFormHeureFin, setShowTimeEnd, curH, m)
-                                }}
-                              >
+                              <button key={m} type="button" className={`nv-time-item${formHeureFin.endsWith(':' + String(m).padStart(2, '0')) ? ' nv-time-item--sel' : ''}`}
+                                onClick={() => { const curH = formHeureFin ? parseInt(formHeureFin.split(':')[0]) || 0 : 0; selectTime(setFormHeureFin, setShowTimeEnd, curH, m) }}>
                                 {String(m).padStart(2, '0')}
                               </button>
                             ))}
@@ -875,15 +872,8 @@ export default function RoutePage() {
                     commandesOptions.map((c) => {
                       const selected = formCommandeIds.includes(c.id)
                       return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          className={`nv-cmd-card${selected ? ' nv-cmd-card--sel' : ''}`}
-                          onClick={() => toggleCommande(c.id)}
-                        >
-                          <span className={`nv-cmd-check${selected ? ' nv-cmd-check--on' : ''}`}>
-                            {selected && <Check size={12} />}
-                          </span>
+                        <button key={c.id} type="button" className={`nv-cmd-card${selected ? ' nv-cmd-card--sel' : ''}`} onClick={() => toggleCommande(c.id)}>
+                          <span className={`nv-cmd-check${selected ? ' nv-cmd-check--on' : ''}`}>{selected && <Check size={12} />}</span>
                           <div className="nv-cmd-body">
                             <div className="nv-cmd-top">
                               <span className="nv-cmd-code">CMD{c.id.slice(0, 4).toUpperCase()}</span>
@@ -896,9 +886,7 @@ export default function RoutePage() {
                             </div>
                             <div className="nv-cmd-agri">{c.agriculteur}</div>
                           </div>
-                          <span className="nv-cmd-dist">
-                            {c.distance_estimee != null ? `${c.distance_estimee} km` : '— km'}
-                          </span>
+                          <span className="nv-cmd-dist">{c.distance_estimee != null ? `${c.distance_estimee} km` : '— km'}</span>
                         </button>
                       )
                     })
@@ -906,11 +894,7 @@ export default function RoutePage() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="nv-submit"
-                disabled={submitting || !formTransporteurId || formCommandeIds.length === 0}
-              >
+              <button type="submit" className="nv-submit" disabled={submitting || !formTransporteurId || formCommandeIds.length === 0}>
                 {submitting ? <Loader size={16} className="nv-spin" /> : <Navigation size={16} />}
                 <span>{submitting ? 'Enregistrement…' : editingRouteId ? 'Enregistrer les modifications' : 'Générer & Optimiser'}</span>
               </button>
@@ -919,7 +903,6 @@ export default function RoutePage() {
         </div>
       )}
 
-      {/* Modal confirmation suppression */}
       {deleteRouteId != null && (
         <div className="rt-modal-overlay" onClick={() => !deleting && setDeleteRouteId(null)}>
           <div className="rt-modal" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
@@ -936,13 +919,7 @@ export default function RoutePage() {
               </p>
               <div className="rt-modal-actions">
                 <button type="button" className="rt-btn-cancel" onClick={() => setDeleteRouteId(null)} disabled={deleting}>Annuler</button>
-                <button
-                  type="button"
-                  className="rt-btn-submit"
-                  style={{ background: '#ef4444' }}
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
+                <button type="button" className="rt-btn-submit" style={{ background: '#ef4444' }} onClick={handleDelete} disabled={deleting}>
                   {deleting ? <Loader size={14} className="nv-spin" /> : 'Supprimer'}
                 </button>
               </div>
@@ -951,11 +928,9 @@ export default function RoutePage() {
         </div>
       )}
 
-      {/* Modal navigation MapQuest */}
       {navModal.type !== 'none' && (
         <div className="rt-modal-overlay" onClick={() => setNavModal({ type: 'none' })}>
           <div className="rt-modal" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
-
             {navModal.type === 'input' && (
               <>
                 <div className="rt-modal-header">
@@ -969,29 +944,15 @@ export default function RoutePage() {
                   <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
                     Entrez votre adresse actuelle pour générer un itinéraire optimisé.
                   </p>
-                  <input
-                    ref={navInputRef}
-                    className="rt-form-input"
-                    placeholder="Ex: 1234 Rue Sainte-Catherine, Montréal, QC"
-                    value={navInput}
-                    onChange={(e) => setNavInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleConfirmAddress()}
-                  />
+                  <input ref={navInputRef} className="rt-form-input" placeholder="Ex: 1234 Rue Sainte-Catherine, Montréal, QC"
+                    value={navInput} onChange={(e) => setNavInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleConfirmAddress()} />
                   <div className="rt-modal-actions">
                     <button type="button" className="rt-btn-cancel" onClick={() => setNavModal({ type: 'none' })}>Annuler</button>
-                    <button
-                      type="button"
-                      className="rt-btn-submit"
-                      onClick={handleConfirmAddress}
-                      disabled={!navInput.trim()}
-                    >
-                      Ouvrir l'itinéraire
-                    </button>
+                    <button type="button" className="rt-btn-submit" onClick={handleConfirmAddress} disabled={!navInput.trim()}>Ouvrir l'itinéraire</button>
                   </div>
                 </div>
               </>
             )}
-
             {navModal.type === 'warning' && (
               <>
                 <div className="rt-modal-header">
@@ -1003,26 +964,16 @@ export default function RoutePage() {
                 </div>
                 <div className="rt-modal-form">
                   <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                    Les adresses des commandes sont trop imprécises pour optimiser l'itinéraire.
-                    <br /><br />
-                    <span style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                      Exemple valide : "1234 Rue Sainte-Catherine, Montréal, QC"
-                    </span>
+                    Les adresses des commandes sont trop imprécises pour optimiser l'itinéraire.<br /><br />
+                    <span style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>Exemple valide : "1234 Rue Sainte-Catherine, Montréal, QC"</span>
                   </p>
                   <div className="rt-modal-actions">
                     <button type="button" className="rt-btn-cancel" onClick={() => setNavModal({ type: 'none' })}>Annuler</button>
-                    <button
-                      type="button"
-                      className="rt-btn-submit"
-                      onClick={() => { openGoogleMaps(navModal.allAddresses); setNavModal({ type: 'none' }) }}
-                    >
-                      Ouvrir sans optimisation
-                    </button>
+                    <button type="button" className="rt-btn-submit" onClick={() => { openGoogleMaps(navModal.allAddresses); setNavModal({ type: 'none' }) }}>Ouvrir sans optimisation</button>
                   </div>
                 </div>
               </>
             )}
-
             {navModal.type === 'noCommandes' && (
               <>
                 <div className="rt-modal-header">

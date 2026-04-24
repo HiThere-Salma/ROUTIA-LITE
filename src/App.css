@@ -2254,3 +2254,20 @@ body {
 
 @keyframes nv-spin { to { transform: rotate(360deg); } }
 .nv-spin { animation: nv-spin 0.8s linear infinite; }
+
+.rt-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #000;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.rt-send-btn:hover { opacity: 0.8; }
+.rt-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
