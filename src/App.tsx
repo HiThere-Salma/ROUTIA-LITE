@@ -1,18 +1,25 @@
 import './App.css'
 import { useState, useEffect } from 'react'
 import { getSupabaseClient } from './lib/supabase'
-import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList } from 'lucide-react'
-import AgriculteurPage from './modules/agriculteur/pages/AgriculteurPage'
-import TransporteurPage from './modules/transporteur/pages/TransporteurPage'
+import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList, LogOut, ShieldCheck } from 'lucide-react'
+import AgriculteurPage from './pages/AgriculteurPage'
+import TransporteurPage from './pages/TransporteurPage'
 import RoutePage from './pages/RoutePage'
+import CommandesPage from './commandes/Pages/CommandesPage'
+import LoginPage from './pages/LoginPage'
+import AdminManagementPage from './pages/AdminManagementPage'
 
-const navItems = [
-  { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-  { label: 'Gestion des transporteurs', icon: <Truck size={16} /> },
-  { label: 'Gestion des agriculteurs', icon: <Sprout size={16} /> },
-  { label: 'Gestion des routes', icon: <Map size={16} /> },
-  { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
-]
+type Admin = {
+  id: string
+  email: string
+  nom: string | null
+  prenom: string | null
+  numero_tel: string | null
+  adresse: string | null
+  nom_complet?: string | null
+  issuper?: boolean | null
+  created_at: string
+}
 
 type Commande = {
   id: string
@@ -64,6 +71,9 @@ function statusLabel(statut: string) {
 }
 
 function App() {
+  const [admin, setAdmin] = useState<Admin | null>(null)
+  const [loginError, setLoginError] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
   const [active, setActive] = useState('Dashboard')
   const [isAgriModalOpen, setIsAgriModalOpen] = useState(false)
   const [isTrModalOpen, setIsTrModalOpen] = useState(false)
@@ -83,9 +93,67 @@ function App() {
     setShowArchived(false)
   }
 
+  const navItems = [
+    { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
+    ...(admin?.issuper ? [{ label: 'Gestion des administrateurs', icon: <ShieldCheck size={16} /> }] : []),
+    { label: 'Gestion des transporteurs', icon: <Truck size={16} /> },
+    { label: 'Gestion des agriculteurs', icon: <Sprout size={16} /> },
+    { label: 'Gestion des routes', icon: <Map size={16} /> },
+    { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
+  ]
+
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    if (admin) fetchDashboardData()
+  }, [admin])
+
+  useEffect(() => {
+    if (!admin?.issuper && active === 'Gestion des administrateurs') {
+      setActive('Dashboard')
+    }
+  }, [admin, active])
+
+  async function handleLogin(email: string, password: string) {
+    setLoginError('')
+    setLoginLoading(true)
+    try {
+      const supabase = getSupabaseClient()
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (authError) {
+        const authMessage = authError.message.toLowerCase()
+        if (authMessage.includes('email not confirmed') || authMessage.includes('email not verified')) {
+          setLoginError('Email non verifie. Ouvrez le lien recu par email puis reconnectez-vous.')
+        } else {
+          setLoginError('Email ou mot de passe incorrect.')
+        }
+        setLoginLoading(false)
+        return
+      }
+      const { data: adminData, error: adminError } = await supabase
+        .from('admin')
+        .select('*')
+        .eq('email', authData.user.email)
+        .single()
+      if (adminError || !adminData) {
+        await supabase.auth.signOut()
+        setLoginError("Cet utilisateur n'a pas les droits administrateur.")
+        setLoginLoading(false)
+        return
+      }
+      setAdmin(adminData as Admin)
+    } catch {
+      setLoginError('Une erreur est survenue. Veuillez réessayer.')
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
+  async function handleLogout() {
+    await getSupabaseClient().auth.signOut()
+    setAdmin(null)
+  }
 
   async function fetchDashboardData() {
     setLoading(true)
@@ -122,6 +190,10 @@ function App() {
     { label: 'Livraisons complétées', value: stats.livraisonsCompletes, badge: '', badgeType: 'success', icon: <CircleCheckBig size={22} color="var(--green)" /> },
   ]
 
+  if (!admin) {
+    return <LoginPage onSubmit={handleLogin} error={loginError} loading={loginLoading} />
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -145,11 +217,14 @@ function App() {
 
         <div className="sidebar-footer">
           <div className="user-chip">
-            <div className="user-avatar">A</div>
+            <div className="user-avatar">{admin.prenom?.[0] ?? 'A'}</div>
             <div>
-              <div className="user-name">Admin User</div>
-              <div className="user-role">Logistics Ops</div>
+              <div className="user-name">{admin.prenom} {admin.nom_complet ?? admin.nom}</div>
+              <div className="user-role">{admin.email}</div>
             </div>
+            <button className="icon-btn logout-btn" onClick={handleLogout} title="Déconnexion">
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
       </aside>
@@ -195,6 +270,7 @@ function App() {
           </div>
         </header>
 
+        {active === 'Gestion des administrateurs' && <AdminManagementPage currentAdmin={admin} />}
         {active === 'Gestion des agriculteurs' && (
           <AgriculteurPage isModalOpen={isAgriModalOpen} onCloseModal={() => setIsAgriModalOpen(false)} showArchived={showArchived} />
         )}
@@ -345,13 +421,7 @@ function App() {
           </div>
         )}
         {active === 'Gestion des routes' && <RoutePage />}
-        {active === 'Gestion des commandes' && (
-          <div className="placeholder-page">
-            <div className="placeholder-icon"><LayoutDashboard size={36} color="var(--border)" /></div>
-            <p className="placeholder-title">{active}</p>
-            <p className="placeholder-sub">Module en cours de développement</p>
-          </div>
-        )}
+        {active === 'Gestion des commandes' && <CommandesPage />}
       </main>
     </div>
   )

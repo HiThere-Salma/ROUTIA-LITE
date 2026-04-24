@@ -15,25 +15,27 @@ export function useTransporteurs(page: number) {
   useEffect(() => {
     let cancelled = false
 
-    setIsLoading(true)
-    setErrorMessage(null)
+    const load = async () => {
+      setIsLoading(true)
+      setErrorMessage(null)
 
-    fetchTransporteurs(page)
-      .then(({ transporteurs: list, total: count }) => {
+      try {
+        const { transporteurs: list, total: count } = await fetchTransporteurs(page)
         if (!cancelled) {
           setTransporteurs(list)
           setTotal(count)
           setLastUpdated(new Date())
         }
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (!cancelled) {
           setErrorMessage(err instanceof Error ? err.message : 'Erreur de chargement')
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setIsLoading(false)
-      })
+      }
+    }
+
+    void load()
 
     return () => { cancelled = true }
   }, [page, refreshCount])
