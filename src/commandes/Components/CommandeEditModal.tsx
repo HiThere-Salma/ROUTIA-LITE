@@ -129,11 +129,13 @@ export default function CommandeEditModal({
   useEffect(() => {
     if (!isOpen) return;
     const nextForm = toFormValues(mode === "edit" ? commande : null);
-    setForm(nextForm);
-    setRouteSearch("");
-    setIsCollecteAddressSelected(Boolean(nextForm.adresse_collecte));
-    setIsLivraisonAddressSelected(Boolean(nextForm.adresse_livraison));
-    setSaveError(null);
+    queueMicrotask(() => {
+      setForm(nextForm);
+      setRouteSearch("");
+      setIsCollecteAddressSelected(Boolean(nextForm.adresse_collecte));
+      setIsLivraisonAddressSelected(Boolean(nextForm.adresse_livraison));
+      setSaveError(null);
+    });
   }, [commande, isOpen, mode]);
 
   useEffect(() => {
@@ -293,6 +295,7 @@ export default function CommandeEditModal({
                 type="date"
                 value={form.date_collecte}
                 onChange={(e) => handleChange("date_collecte", e.target.value)}
+                min={mode === "create" ? new Date().toISOString().slice(0, 10) : undefined}
                 required
                 disabled={saving}
               />

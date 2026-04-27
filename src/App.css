@@ -3451,6 +3451,7 @@ body {
 
 .nv-cal-day:hover { background: var(--bg3); color: var(--text); }
 .nv-cal-day--today { color: var(--green); font-weight: 700; }
+.nv-cal-day--past { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
 
 .nv-cal-day--sel {
   background: var(--green) !important;

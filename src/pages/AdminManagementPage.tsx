@@ -91,10 +91,6 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetchAdmins()
-  }, [])
-
   async function fetchAdmins() {
     setLoading(true)
     setError('')
@@ -112,6 +108,11 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
     setAdmins((data as AdminRow[]) ?? [])
     setLoading(false)
   }
+
+  useEffect(() => {
+    async function load() { await fetchAdmins() }
+    void load()
+  }, [])
 
   const filteredAdmins = useMemo(() => {
     const query = search.trim().toLowerCase()
