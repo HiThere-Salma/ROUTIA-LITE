@@ -14,24 +14,26 @@ export function useArchivedTransporteurs(page: number) {
   useEffect(() => {
     let cancelled = false
 
-    setIsLoading(true)
-    setErrorMessage(null)
+    const load = async () => {
+      setIsLoading(true)
+      setErrorMessage(null)
 
-    fetchArchivedTransporteurs(page)
-      .then(({ transporteurs: list, total: count }) => {
+      try {
+        const { transporteurs: list, total: count } = await fetchArchivedTransporteurs(page)
         if (!cancelled) {
           setTransporteurs(list)
           setTotal(count)
         }
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (!cancelled) {
           setErrorMessage(err instanceof Error ? err.message : 'Erreur de chargement')
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setIsLoading(false)
-      })
+      }
+    }
+
+    void load()
 
     return () => { cancelled = true }
   }, [page, refreshCount])

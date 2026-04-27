@@ -37,6 +37,7 @@ Crée un fichier `.env` à la racine :
 \`\`\`env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_MAPBOX_KEY=your_mapbox_access_token
 \`\`\`
 
 ## Lancement
