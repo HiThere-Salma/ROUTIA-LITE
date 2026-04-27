@@ -8,6 +8,7 @@ import RoutePage from './pages/RoutePage'
 import CommandesPage from './commandes/Pages/CommandesPage'
 import LoginPage from './pages/LoginPage'
 import AdminManagementPage from './pages/AdminManagementPage'
+import LanguageSwitcher from './components/LanguageSwitcher'
 
 type Admin = {
   id: string
@@ -267,6 +268,7 @@ function App() {
             {active === 'Gestion des transporteurs' && (
               <button className="btn-add-agri" onClick={() => setIsTrModalOpen(true)}>＋ Ajouter un transporteur</button>
             )}
+            <LanguageSwitcher />
             <button className="icon-btn"><Bell size={16} /></button>
             <button className="icon-btn"><Settings size={16} /></button>
           </div>
