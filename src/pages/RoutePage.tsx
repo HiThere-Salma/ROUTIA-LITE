@@ -63,6 +63,7 @@ export default function RoutePage() {
   const [formTransporteurId, setFormTransporteurId] = useState('')
   const [formCommandeIds, setFormCommandeIds] = useState<string[]>([])
   const [formStatut, setFormStatut] = useState<RouteData['statut']>('planifiee')
+  const [formAdresseDepart, setFormAdresseDepart] = useState('')
   const [transporteurs, setTransporteurs] = useState<TransporteurOption[]>([])
   const [commandesOptions, setCommandesOptions] = useState<CommandeOption[]>([])
 
@@ -93,6 +94,7 @@ export default function RoutePage() {
     setFormTransporteurId('')
     setFormCommandeIds([])
     setFormStatut('planifiee')
+    setFormAdresseDepart('')
     setEditingRouteId(null)
   }
 
@@ -141,7 +143,7 @@ export default function RoutePage() {
     fetchCommandes()
   }, [showModal, editingRouteId])
 
-  async function buildMapsLink(commandeIds: string[]): Promise<string> {
+  async function buildMapsLink(commandeIds: string[], startAddress?: string): Promise<string> {
     const supabase = getSupabaseClient()
     const { data: cmds } = await supabase
       .from('commandes')
@@ -152,6 +154,7 @@ export default function RoutePage() {
     if (commandes.length === 0) return ''
 
     const allAddresses = [
+      ...(startAddress ? [startAddress] : []),
       ...commandes.map((c: Record<string, string>) => c.adresse_collecte),
       ...commandes.map((c: Record<string, string>) => c.adresse_livraison),
     ]
@@ -181,11 +184,10 @@ export default function RoutePage() {
     return `https://www.google.com/maps/dir/${allAddresses.map(a => encodeURIComponent(a)).join('/')}`
   }
 
-  // Used when modal is open (transporteurs already loaded in state)
-  async function sendRouteEmail(transporteurId: string, routeDate: string, commandeIds: string[]) {
+  async function sendRouteEmail(transporteurId: string, routeDate: string, commandeIds: string[], startAddress?: string) {
     const transporteur = transporteurs.find(t => t.id === transporteurId)
     if (!transporteur) return
-    const mapsLink = await buildMapsLink(commandeIds)
+    const mapsLink = await buildMapsLink(commandeIds, startAddress)
     if (!mapsLink) return
     try {
       const supabase = getSupabaseClient()
@@ -203,7 +205,6 @@ export default function RoutePage() {
     }
   }
 
-  // Used from table buttons — fetches transporteur fresh from DB
   async function handleSendEmail(routeId: number, transporteurId: string, routeDate: string, commandeIds: string[]) {
     setSendingEmail(routeId)
     try {
@@ -305,7 +306,7 @@ export default function RoutePage() {
           if (statutErr) throw statutErr
         }
 
-        await sendRouteEmail(formTransporteurId, formDate, formCommandeIds)
+        await sendRouteEmail(formTransporteurId, formDate, formCommandeIds, formAdresseDepart || undefined)
 
       } else {
         const { data: newRoute, error: routeError } = await supabase
@@ -330,7 +331,7 @@ export default function RoutePage() {
           if (cmdError) throw cmdError
         }
 
-        await sendRouteEmail(formTransporteurId, formDate, formCommandeIds)
+        await sendRouteEmail(formTransporteurId, formDate, formCommandeIds, formAdresseDepart || undefined)
       }
 
       setShowModal(false)
@@ -370,6 +371,7 @@ export default function RoutePage() {
     setFormTransporteurId(route.transporteur_id)
     setFormCommandeIds(route.commandeIds)
     setFormStatut(route.statut)
+    setFormAdresseDepart('')
     setShowModal(true)
   }
 
@@ -439,8 +441,7 @@ export default function RoutePage() {
   async function handleConfirmAddress() {
     if (navModal.type !== 'input') return
     const { routeId } = navModal
-    const startLocation = navInput.trim()
-    if (!startLocation) return
+    const startLocation = navInput.trim() || undefined
 
     setNavModal({ type: 'none' })
     setLoadingRoute(routeId)
@@ -461,7 +462,7 @@ export default function RoutePage() {
       }
 
       const allAddresses = [
-        startLocation,
+        ...(startLocation ? [startLocation] : []),
         ...commandes.map((c: Record<string, string>) => c.adresse_collecte),
         ...commandes.map((c: Record<string, string>) => c.adresse_livraison),
       ]
@@ -863,6 +864,25 @@ export default function RoutePage() {
                 </div>
               </div>
 
+              {/* Adresse de départ facultative */}
+              <div className="nv-field">
+                <span className="nv-label">
+                  Adresse de départ
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 6, fontSize: 11 }}>(facultatif)</span>
+                </span>
+                <div style={{ position: 'relative' }}>
+                  <MapPin size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                  <input
+                    className="rt-form-input"
+                    type="text"
+                    placeholder="Ex: 1234 Rue Sainte-Catherine, Montréal, QC"
+                    value={formAdresseDepart}
+                    onChange={(e) => setFormAdresseDepart(e.target.value)}
+                    style={{ paddingLeft: 30 }}
+                  />
+                </div>
+              </div>
+
               <div className="nv-field">
                 <span className="nv-label">Commandes disponibles</span>
                 <div className="nv-cmd-list">
@@ -948,7 +968,7 @@ export default function RoutePage() {
                     value={navInput} onChange={(e) => setNavInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleConfirmAddress()} />
                   <div className="rt-modal-actions">
                     <button type="button" className="rt-btn-cancel" onClick={() => setNavModal({ type: 'none' })}>Annuler</button>
-                    <button type="button" className="rt-btn-submit" onClick={handleConfirmAddress} disabled={!navInput.trim()}>Ouvrir l'itinéraire</button>
+                    <button type="button" className="rt-btn-submit" onClick={handleConfirmAddress}>Ouvrir l'itinéraire</button>
                   </div>
                 </div>
               </>
