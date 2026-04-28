@@ -634,7 +634,7 @@ export default function RoutePage() {
                       </div>
                     </td>
                     <td>
-                      <span className="rt-date">{r.date ? new Date(r.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
+                      <span className="rt-date">{r.date ? (() => { const [y, m, d] = r.date.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) })() : '—'}</span>
                     </td>
                     <td>
                       <div className="rt-horaires">
