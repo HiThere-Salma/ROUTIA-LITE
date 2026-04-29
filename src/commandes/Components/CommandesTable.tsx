@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Pencil, Trash2 } from "lucide-react";
 import CommandeStatusBadge from "./CommandeStatusBadge";
 import type { CommandeData } from "../commandes.types";
@@ -28,24 +29,25 @@ export default function CommandesTable({
   onEditCommande,
   onDeleteCommande,
 }: CommandesTableProps) {
+  const { t } = useTranslation()
   return (
     <div className="cmd-table-wrap">
       <table className="cmd-management-table">
         <thead>
           <tr>
-            <th>ID COMMANDE</th>
-            <th>DATE COLLECTE</th>
-            <th>ADRESSE COLLECTE</th>
-            <th>ADRESSE LIVRAISON</th>
-            <th>STATUT</th>
-            <th>ACTIONS</th>
+            <th>{t('cmdPage.thId')}</th>
+            <th>{t('cmdPage.thDate')}</th>
+            <th>{t('cmdPage.thCollecte')}</th>
+            <th>{t('cmdPage.thLivraison')}</th>
+            <th>{t('cmdPage.thStatut')}</th>
+            <th>{t('cmdPage.thActions')}</th>
           </tr>
         </thead>
         <tbody>
           {commandes.length === 0 ? (
             <tr>
               <td className="cmd-management-empty" colSpan={6}>
-                Aucune commande a afficher.
+                {t('cmdPage.emptyTable')}
               </td>
             </tr>
           ) : (

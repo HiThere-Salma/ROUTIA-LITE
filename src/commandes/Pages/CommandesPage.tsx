@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { Search } from "lucide-react";
 import { getAllCommandes } from "../Services/commande.service";
 import { deleteCommande } from "../Repo/commande.repo";
@@ -52,12 +53,14 @@ function updateCommandeIdInUrl(commandeId: string | null) {
 }
 
 export default function CommandesPage() {
+  const { t } = useTranslation()
   const [commandes, setCommandes] = useState<CommandeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState(FILTER_ALL);
   const [currentPage, setCurrentPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [selectedCommandeId, setSelectedCommandeId] = useState<string | null>(readSelectedCommandeIdFromUrl());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editCommande, setEditCommande] = useState<CommandeData | null>(null);
@@ -67,33 +70,32 @@ export default function CommandesPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ commandeId: string; commande: CommandeData } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadCommandes = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage(null);
+  const loadCommandes = useCallback(() => setRefreshKey((k) => k + 1), []);
 
-    try {
-      const data = await getAllCommandes();
-      const list = Array.isArray(data) ? (data as CommandeData[]) : [];
-      setCommandes(list);
-    } catch (error) {
-      console.error(error);
-      setErrorMessage("Impossible de charger les commandes.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      setLoading(true);
+      setErrorMessage(null);
+      try {
+        const data = await getAllCommandes();
+        if (active) setCommandes(Array.isArray(data) ? (data as CommandeData[]) : []);
+      } catch (error) {
+        console.error(error);
+        if (active) setErrorMessage("Impossible de charger les commandes.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [refreshKey]);
 
   useEffect(() => {
     const onPopState = () => setSelectedCommandeId(readSelectedCommandeIdFromUrl());
-
     window.addEventListener("popstate", onPopState);
-
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
-
-  useEffect(() => {
-    loadCommandes();
-  }, [loadCommandes]);
 
   const getStatus = useCallback((commande: CommandeData) =>
     formatStatusLabel(commande.statut ?? commande.status ?? commande.etat ?? commande.etat_commande ?? commande.etat_livraison), []);
@@ -116,14 +118,12 @@ export default function CommandesPage() {
       .sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }))
       .map((value) => ({ value, label: value }));
 
-    return [{ value: FILTER_ALL, label: "Tous les statuts" }, ...dynamicValues];
-  }, [commandes, getStatus]);
+    return [{ value: FILTER_ALL, label: t('cmdPage.filterAll') }, ...dynamicValues];
+  }, [commandes, getStatus, t]);
 
-  useEffect(() => {
-    if (!statusFilterOptions.some((option) => option.value === selectedStatusFilter)) {
-      setSelectedStatusFilter(FILTER_ALL);
-    }
-  }, [selectedStatusFilter, statusFilterOptions]);
+  const effectiveStatusFilter = statusFilterOptions.some((o) => o.value === selectedStatusFilter)
+    ? selectedStatusFilter
+    : FILTER_ALL;
 
   const filteredCommandes = useMemo(() => {
     const searchLower = search.toLowerCase().trim();
@@ -141,22 +141,19 @@ export default function CommandesPage() {
         asCommandeId(commande, index).toLowerCase().includes(searchLower);
 
       const statusValue = getStatus(commande).toLowerCase();
-      const matchFilter = selectedStatusFilter === FILTER_ALL || statusValue === selectedStatusFilter.toLowerCase();
+      const matchFilter = effectiveStatusFilter === FILTER_ALL || statusValue === effectiveStatusFilter.toLowerCase();
 
       return matchSearch && matchFilter;
     });
-  }, [commandes, getStatus, search, selectedStatusFilter]);
+  }, [commandes, getStatus, search, effectiveStatusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredCommandes.length / ITEMS_PER_PAGE));
-
-  useEffect(() => {
-    setCurrentPage((current) => Math.min(current, totalPages));
-  }, [totalPages]);
+  const effectivePage = Math.min(currentPage, totalPages);
 
   const paginatedCommandes = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const start = (effectivePage - 1) * ITEMS_PER_PAGE;
     return filteredCommandes.slice(start, start + ITEMS_PER_PAGE);
-  }, [currentPage, filteredCommandes]);
+  }, [effectivePage, filteredCommandes]);
 
   const selectedCommande = useMemo(() => {
     if (!selectedCommandeId) return null;
@@ -230,11 +227,11 @@ export default function CommandesPage() {
     <div className="cmd-page">
       <div className="cmd-header-row">
         <div className="dashboard-hero cmd-title-wrap">
-          <h1 className="dashboard-title">Gestion des commandes</h1>
-          <p className="dashboard-sub">Suivi en temps reel de l'activite logistique RoutIA.</p>
+          <h1 className="dashboard-title">{t('commandes.title')}</h1>
+          <p className="dashboard-sub">{t('commandes.sub')}</p>
         </div>
 
-        <button className="btn-add-agri" type="button" onClick={onCreateCommande}>+ Nouvelle commande</button>
+        <button className="btn-add-agri" type="button" onClick={onCreateCommande}>{t('cmdPage.addBtn')}</button>
       </div>
 
       <div className="cmd-search-row">
@@ -242,7 +239,7 @@ export default function CommandesPage() {
           <Search size={14} color="var(--text-muted)" />
           <input
             className="cmd-search-input"
-            placeholder="Rechercher une commande, un lieu..."
+            placeholder={t('cmdPage.searchPlaceholder')}
             type="text"
             value={search}
             onChange={(event) => {
@@ -256,10 +253,10 @@ export default function CommandesPage() {
       <div className="cmd-filter-row">
         <div className="cmd-filter-grid">
           <label className="cmd-filter-field">
-            <span>Statut</span>
+            <span>{t('cmdPage.filterStatut')}</span>
             <select
               className="cmd-filter-select"
-              value={selectedStatusFilter}
+              value={effectiveStatusFilter}
               onChange={(event) => {
                 setSelectedStatusFilter(event.target.value);
                 setCurrentPage(1);
@@ -284,13 +281,13 @@ export default function CommandesPage() {
               setCurrentPage(1);
             }}
           >
-            Réinitialiser
+            {t('cmdPage.resetBtn')}
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="cmd-feedback">Chargement des commandes...</div>
+        <div className="cmd-feedback">{t('cmdPage.loading')}</div>
       ) : errorMessage ? (
         <div className="cmd-feedback cmd-feedback--error">{errorMessage}</div>
       ) : (
@@ -308,14 +305,14 @@ export default function CommandesPage() {
 
           <div className="agri-pagination">
             <span className="agri-pag-info">
-              Affichage de {(currentPage - 1) * ITEMS_PER_PAGE + (filteredCommandes.length > 0 ? 1 : 0)}-
-              {Math.min(currentPage * ITEMS_PER_PAGE, filteredCommandes.length)} sur {filteredCommandes.length}
+              {t('cmdPage.showing')} {(effectivePage - 1) * ITEMS_PER_PAGE + (filteredCommandes.length > 0 ? 1 : 0)}-
+              {Math.min(effectivePage * ITEMS_PER_PAGE, filteredCommandes.length)} {t('cmdPage.of')} {filteredCommandes.length}
             </span>
             <div className="agri-pag-pages">
               <button
                 className="page-btn"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                disabled={effectivePage === 1}
                 type="button"
               >
                 ‹
@@ -324,7 +321,7 @@ export default function CommandesPage() {
               {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1).map((pageNumber) => (
                 <button
                   key={pageNumber}
-                  className={`page-btn ${currentPage === pageNumber ? "page-btn--active" : ""}`}
+                  className={`page-btn ${effectivePage === pageNumber ? "page-btn--active" : ""}`}
                   onClick={() => setCurrentPage(pageNumber)}
                   type="button"
                 >
@@ -335,7 +332,7 @@ export default function CommandesPage() {
               <button
                 className="page-btn"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                disabled={effectivePage === totalPages}
                 type="button"
               >
                 ›

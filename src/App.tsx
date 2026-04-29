@@ -1,13 +1,14 @@
 import './App.css'
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getSupabaseClient } from './lib/supabase'
 import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList, LogOut, ShieldCheck } from 'lucide-react'
 import AgriculteurPage from './pages/AgriculteurPage'
 import TransporteurPage from './pages/TransporteurPage'
 import RoutePage from './pages/RoutePage'
-import CommandesPage from './commandes/Pages/CommandesPage'
 import LoginPage from './pages/LoginPage'
 import AdminManagementPage from './pages/AdminManagementPage'
+import CommandesPage from './commandes/Pages/CommandesPage'
 import LanguageSwitcher from './components/LanguageSwitcher'
 
 type Admin = {
@@ -72,13 +73,11 @@ function statusLabel(statut: string) {
 }
 
 function App() {
+  const { t } = useTranslation()
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [loginError, setLoginError] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
   const [active, setActive] = useState('Dashboard')
-  const [isAgriModalOpen, setIsAgriModalOpen] = useState(false)
-  const [isTrModalOpen, setIsTrModalOpen] = useState(false)
-  const [showArchived, setShowArchived] = useState(false)
   const [commandes, setCommandes] = useState<Commande[]>([])
   const [routes, setRoutes] = useState<Route[]>([])
   const [stats, setStats] = useState<Stats>({
@@ -88,87 +87,72 @@ function App() {
     livraisonsCompletes: 0,
   })
   const [loading, setLoading] = useState(true)
-
-  function handleNavChange(label: string) {
-    setActive(label)
-    setShowArchived(false)
-  }
+  const [agriModalOpen, setAgriModalOpen] = useState(false)
+  const [agriShowArchived] = useState(false)
+  const [transModalOpen, setTransModalOpen] = useState(false)
+  const [transShowArchived] = useState(false)
 
   const navItems = [
-    { label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-    ...(admin?.issuper ? [{ label: 'Gestion des administrateurs', icon: <ShieldCheck size={16} /> }] : []),
-    { label: 'Gestion des transporteurs', icon: <Truck size={16} /> },
-    { label: 'Gestion des agriculteurs', icon: <Sprout size={16} /> },
-    { label: 'Gestion des routes', icon: <Map size={16} /> },
-    { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
+    { key: 'Dashboard', label: t('nav.dashboard'), icon: <LayoutDashboard size={16} /> },
+    ...(admin?.issuper ? [{ key: 'Gestion des administrateurs', label: t('nav.admins'), icon: <ShieldCheck size={16} /> }] : []),
+    { key: 'Gestion des transporteurs', label: t('nav.transporteurs'), icon: <Truck size={16} /> },
+    { key: 'Gestion des agriculteurs', label: t('nav.agriculteurs'), icon: <Sprout size={16} /> },
+    { key: 'Gestion des routes', label: t('nav.routes'), icon: <Map size={16} /> },
+    { key: 'Gestion des commandes', label: t('nav.commandes'), icon: <ClipboardList size={16} /> },
   ]
 
-  async function fetchDashboardData() {
-    setLoading(true)
-    try {
-      const supabase = getSupabaseClient()
-      const [
-        { data: allCommandes },
-        { data: recentCommandes },
-        { data: transporteurs },
-        { data: recentRoutes },
-      ] = await Promise.all([
-        supabase.from('commandes').select('statut'),
-        supabase.from('commandes').select('id, produit, prix, statut, date_collecte, agriculteur_id, utilisateurs!agriculteur_id(prenom, nom)').order('date_collecte', { ascending: false }).limit(5),
-        supabase.from('utilisateurs').select('id').eq('role', 'transporteur'),
-        supabase.from('routes').select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(prenom, nom)').order('date', { ascending: false }).limit(3),
-      ])
-      const total = allCommandes?.length ?? 0
-      const enCours = allCommandes?.filter(c => c.statut === 'en_attente' || c.statut === 'assignee' || c.statut === 'recuperee' || c.statut === 'en_transport').length ?? 0
-      const livres = allCommandes?.filter(c => c.statut === 'livree').length ?? 0
-      setStats({ totalCommandes: total, commandesEnCours: enCours, transporteursActifs: transporteurs?.length ?? 0, livraisonsCompletes: livres })
-      setCommandes((recentCommandes as unknown as Commande[]) ?? [])
-      setRoutes((recentRoutes as unknown as Route[]) ?? [])
-    } catch (err) {
-      console.error('Erreur Supabase:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const effectiveActive = (!admin?.issuper && active === 'Gestion des administrateurs') ? 'Dashboard' : active
 
   useEffect(() => {
     if (!admin) return
-    async function load() { await fetchDashboardData() }
-    void load()
-  }, [admin])
-
-  useEffect(() => {
-    if (!admin?.issuper && active === 'Gestion des administrateurs') {
-      queueMicrotask(() => setActive('Dashboard'))
+    async function loadDashboard() {
+      try {
+        const [
+          { data: allCommandes },
+          { data: recentCommandes },
+          { data: transporteurs },
+          { data: recentRoutes },
+        ] = await Promise.all([
+          getSupabaseClient().from('commandes').select('statut'),
+          getSupabaseClient().from('commandes').select('id, produit, prix, statut, date_collecte, agriculteur_id, utilisateurs!agriculteur_id(prenom, nom)').order('date_collecte', { ascending: false }).limit(5),
+          getSupabaseClient().from('utilisateurs').select('id').eq('role', 'transporteur'),
+          getSupabaseClient().from('routes').select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(prenom, nom)').order('date', { ascending: false }).limit(3),
+        ])
+        const total = allCommandes?.length ?? 0
+        const enCours = allCommandes?.filter(c => c.statut === 'en_attente' || c.statut === 'assignee' || c.statut === 'recuperee' || c.statut === 'en_transport').length ?? 0
+        const livres = allCommandes?.filter(c => c.statut === 'livree').length ?? 0
+        setStats({ totalCommandes: total, commandesEnCours: enCours, transporteursActifs: transporteurs?.length ?? 0, livraisonsCompletes: livres })
+        setCommandes((recentCommandes as unknown as Commande[]) ?? [])
+        setRoutes((recentRoutes as unknown as Route[]) ?? [])
+      } catch (err) {
+        console.error('Erreur Supabase:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [admin, active])
+    loadDashboard()
+  }, [admin])
 
   async function handleLogin(email: string, password: string) {
     setLoginError('')
     setLoginLoading(true)
     try {
-      const supabase = getSupabaseClient()
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await getSupabaseClient().auth.signInWithPassword({
         email,
         password,
       })
       if (authError) {
-        const authMessage = authError.message.toLowerCase()
-        if (authMessage.includes('email not confirmed') || authMessage.includes('email not verified')) {
-          setLoginError('Email non verifie. Ouvrez le lien recu par email puis reconnectez-vous.')
-        } else {
-          setLoginError('Email ou mot de passe incorrect.')
-        }
+        setLoginError('Email ou mot de passe incorrect.')
         setLoginLoading(false)
         return
       }
-      const { data: adminData, error: adminError } = await supabase
+      const { data: adminData, error: adminError } = await getSupabaseClient()
         .from('admin')
         .select('*')
         .eq('email', authData.user.email)
         .single()
       if (adminError || !adminData) {
-        await supabase.auth.signOut()
+        await getSupabaseClient().auth.signOut()
         setLoginError("Cet utilisateur n'a pas les droits administrateur.")
         setLoginLoading(false)
         return
@@ -187,10 +171,10 @@ function App() {
   }
 
   const statsCards = [
-    { label: 'Total commandes', value: stats.totalCommandes, badge: '', badgeType: '', icon: <ChartColumn size={22} color="var(--green)" /> },
-    { label: 'Commandes en cours', value: stats.commandesEnCours, badge: '', badgeType: 'info', icon: <ClipboardClock size={22} color="var(--green)" /> },
-    { label: 'Transporteurs actifs', value: stats.transporteursActifs, badge: '', badgeType: 'success', icon: <Truck size={22} color="var(--green)" /> },
-    { label: 'Livraisons complétées', value: stats.livraisonsCompletes, badge: '', badgeType: 'success', icon: <CircleCheckBig size={22} color="var(--green)" /> },
+    { label: t('stats.totalCommandes'), value: stats.totalCommandes, badge: '', badgeType: '', icon: <ChartColumn size={22} color="var(--green)" /> },
+    { label: t('stats.enCours'), value: stats.commandesEnCours, badge: '', badgeType: 'info', icon: <ClipboardClock size={22} color="var(--green)" /> },
+    { label: t('stats.actifsTransp'), value: stats.transporteursActifs, badge: '', badgeType: 'success', icon: <Truck size={22} color="var(--green)" /> },
+    { label: t('stats.livreesCompletes'), value: stats.livraisonsCompletes, badge: '', badgeType: 'success', icon: <CircleCheckBig size={22} color="var(--green)" /> },
   ]
 
   if (!admin) {
@@ -208,9 +192,9 @@ function App() {
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button
-              key={item.label}
-              className={`nav-item ${active === item.label ? 'nav-item--active' : ''}`}
-              onClick={() => handleNavChange(item.label)}
+              key={item.key}
+              className={`nav-item ${effectiveActive === item.key ? 'nav-item--active' : ''}`}
+              onClick={() => setActive(item.key)}
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
@@ -225,7 +209,7 @@ function App() {
               <div className="user-name">{admin.prenom} {admin.nom_complet ?? admin.nom}</div>
               <div className="user-role">{admin.email}</div>
             </div>
-            <button className="icon-btn logout-btn" onClick={handleLogout} title="Déconnexion">
+            <button className="icon-btn logout-btn" onClick={handleLogout} title={t('common.logout')}>
               <LogOut size={14} />
             </button>
           </div>
@@ -234,39 +218,12 @@ function App() {
 
       <main className="main-content">
         <header className="topbar">
-          <div className="topbar-search">
-            <span className="search-icon">🔍</span>
-            <input
-              className="search-input"
-              placeholder={
-                active === 'Gestion des agriculteurs' ? 'Rechercher un agriculteur, un CIN ou une ville...' :
-                active === 'Gestion des transporteurs' ? 'Rechercher un transporteur...' :
-                'Rechercher une commande, un transporteur...'
-              }
-            />
-          </div>
-          {(active === 'Gestion des agriculteurs' || active === 'Gestion des transporteurs') && (
-            <div className="tr-view-toggle topbar-toggle">
-              <button
-                className={`tr-toggle-btn${!showArchived ? ' tr-toggle-btn--active' : ''}`}
-                onClick={() => setShowArchived(false)}
-              >
-                Actifs
-              </button>
-              <button
-                className={`tr-toggle-btn${showArchived ? ' tr-toggle-btn--active' : ''}`}
-                onClick={() => setShowArchived(true)}
-              >
-                Archivés
-              </button>
-            </div>
-          )}
           <div className="topbar-right">
-            {active === 'Gestion des agriculteurs' && (
-              <button className="btn-add-agri" onClick={() => setIsAgriModalOpen(true)}>＋ Ajouter un agriculteur</button>
+            {effectiveActive === 'Gestion des agriculteurs' && (
+              <button className="btn-add-agri" onClick={() => setAgriModalOpen(true)}>{t('topbar.addAgri')}</button>
             )}
-            {active === 'Gestion des transporteurs' && (
-              <button className="btn-add-agri" onClick={() => setIsTrModalOpen(true)}>＋ Ajouter un transporteur</button>
+            {effectiveActive === 'Gestion des transporteurs' && (
+              <button className="btn-add-agri" onClick={() => setTransModalOpen(true)}>{t('topbar.addTransp')}</button>
             )}
             <LanguageSwitcher />
             <button className="icon-btn"><Bell size={16} /></button>
@@ -274,19 +231,15 @@ function App() {
           </div>
         </header>
 
-        {active === 'Gestion des administrateurs' && <AdminManagementPage currentAdmin={admin} />}
-        {active === 'Gestion des agriculteurs' && (
-          <AgriculteurPage isModalOpen={isAgriModalOpen} onCloseModal={() => setIsAgriModalOpen(false)} showArchived={showArchived} />
-        )}
-        {active === 'Gestion des transporteurs' && (
-          <TransporteurPage isModalOpen={isTrModalOpen} onCloseModal={() => setIsTrModalOpen(false)} showArchived={showArchived} />
-        )}
+        {effectiveActive === 'Gestion des administrateurs' && <AdminManagementPage />}
+        {effectiveActive === 'Gestion des agriculteurs' && <AgriculteurPage isModalOpen={agriModalOpen} onCloseModal={() => setAgriModalOpen(false)} showArchived={agriShowArchived} />}
+        {effectiveActive === 'Gestion des transporteurs' && <TransporteurPage isModalOpen={transModalOpen} onCloseModal={() => setTransModalOpen(false)} showArchived={transShowArchived} />}
 
-        {active === 'Dashboard' && (
+        {effectiveActive === 'Dashboard' && (
           <div className="dashboard">
             <div className="dashboard-hero">
-              <h1 className="dashboard-title">Tableau de Bord</h1>
-              <p className="dashboard-sub">Vue d'ensemble de la performance logistique en temps réel.</p>
+              <h1 className="dashboard-title">{t('dashboard.title')}</h1>
+              <p className="dashboard-sub">{t('dashboard.sub')}</p>
             </div>
 
             <div className="stats-grid">
@@ -309,29 +262,29 @@ function App() {
               <div className="bottom-left">
                 <div className="panel">
                   <div className="panel-header">
-                    <span>Commandes récentes</span>
-                    <button className="link-btn">Voir tout</button>
+                    <span>{t('dashPanel.recentCommandes')}</span>
+                    <button className="link-btn">{t('dashPanel.viewAll')}</button>
                   </div>
                   {loading ? (
                     <div className="panel-empty">
                       <Loader size={28} color="var(--text-dim)" />
-                      <span>Chargement...</span>
+                      <span>{t('common.loading')}</span>
                     </div>
                   ) : commandes.length === 0 ? (
                     <div className="panel-empty">
                       <ClipboardList size={28} color="var(--text-dim)" />
-                      <span>Aucune commande pour le moment</span>
+                      <span>{t('dashPanel.noCommandes')}</span>
                     </div>
                   ) : (
                     <table className="cmd-table">
                       <thead>
                         <tr>
-                          <th>ID</th>
-                          <th>Agriculteur</th>
-                          <th>Produit</th>
-                          <th>Statut</th>
-                          <th>Date</th>
-                          <th>Prix</th>
+                          <th>{t('dashPanel.thId')}</th>
+                          <th>{t('dashPanel.thAgri')}</th>
+                          <th>{t('dashPanel.thProduit')}</th>
+                          <th>{t('dashPanel.thStatut')}</th>
+                          <th>{t('dashPanel.thDate')}</th>
+                          <th>{t('dashPanel.thPrix')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -356,17 +309,17 @@ function App() {
 
                 <div className="panel" style={{ marginTop: '14px' }}>
                   <div className="panel-header">
-                    <span>Routes récentes</span>
+                    <span>{t('dashPanel.recentRoutes')}</span>
                   </div>
                   {loading ? (
                     <div className="panel-empty">
                       <Loader size={28} color="var(--text-dim)" />
-                      <span>Chargement...</span>
+                      <span>{t('common.loading')}</span>
                     </div>
                   ) : routes.length === 0 ? (
                     <div className="panel-empty">
                       <Map size={28} color="var(--text-dim)" />
-                      <span>Aucune route pour le moment</span>
+                      <span>{t('dashPanel.noRoutes')}</span>
                     </div>
                   ) : (
                     <div className="transporteurs-list">
@@ -389,7 +342,7 @@ function App() {
 
               <div className="panel activite-panel">
                 <div className="panel-header">
-                  <span>Activité Récente</span>
+                  <span>{t('dashPanel.recentActivity')}</span>
                 </div>
                 <div className="activite-list">
                   {commandes.slice(0, 3).map((c: Commande, i: number) => (
@@ -400,11 +353,11 @@ function App() {
                       </div>
                       <div>
                         <div className="activite-title">
-                          {c.statut === 'livree' ? 'Livraison validée' :
-                            c.statut === 'en_transport' ? 'En cours de livraison' :
-                              c.statut === 'recuperee' ? 'Commande récupérée' :
-                                c.statut === 'assignee' ? 'Commande assignée' :
-                                  'Commande en attente'}
+                          {c.statut === 'livree' ? t('dashPanel.actLivree') :
+                            c.statut === 'en_transport' ? t('dashPanel.actEnTransport') :
+                              c.statut === 'recuperee' ? t('dashPanel.actRecuperee') :
+                                c.statut === 'assignee' ? t('dashPanel.actAssignee') :
+                                  t('dashPanel.actEnAttente')}
                         </div>
                         <div className="activite-desc">
                           {c.utilisateurs?.prenom} {c.utilisateurs?.nom} — {c.produit}
@@ -416,7 +369,7 @@ function App() {
                   {commandes.length === 0 && !loading && (
                     <div className="panel-empty">
                       <MailX size={28} color="var(--text-dim)" />
-                      <span>Aucune activité récente</span>
+                      <span>{t('dashPanel.noActivity')}</span>
                     </div>
                   )}
                 </div>
@@ -424,8 +377,8 @@ function App() {
             </div>
           </div>
         )}
-        {active === 'Gestion des routes' && <RoutePage />}
-        {active === 'Gestion des commandes' && <CommandesPage />}
+        {effectiveActive === 'Gestion des routes' && <RoutePage />}
+        {effectiveActive === 'Gestion des commandes' && <CommandesPage />}
       </main>
     </div>
   )

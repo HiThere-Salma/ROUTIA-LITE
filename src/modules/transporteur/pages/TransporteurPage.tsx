@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useTransporteurs } from '../hooks/useTransporteurs'
 import { useArchivedTransporteurs } from '../hooks/useArchivedTransporteurs'
 import { useArchiveTransporteur } from '../hooks/useArchiveTransporteur'
@@ -13,6 +14,7 @@ import { formatLastUpdated } from '../utils/transporteur.utils'
 import type { Transporteur } from '../types/transporteur.types'
 
 export default function TransporteurPage({ isModalOpen, onCloseModal, showArchived }: { isModalOpen: boolean; onCloseModal: () => void; showArchived: boolean }) {
+  const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const { transporteurs, total, isLoading, errorMessage, lastUpdated, refresh } = useTransporteurs(page)
   const { transporteurs: archivedTransporteurs, total: archivedTotal, isLoading: isLoadingArchived, errorMessage: archivedError, refresh: refreshArchived } = useArchivedTransporteurs(page)
@@ -40,8 +42,8 @@ export default function TransporteurPage({ isModalOpen, onCloseModal, showArchiv
   return (
     <div className="tr-page">
       <div className="dashboard-hero">
-        <h1 className="dashboard-title">Gestion des transporteurs</h1>
-        <p className="dashboard-sub">Visualisez et gérez l'ensemble des prestataires logistiques enregistrés sur la plateforme.</p>
+        <h1 className="dashboard-title">{t('transporteurs.title')}</h1>
+        <p className="dashboard-sub">{t('transporteurs.sub')}</p>
       </div>
 
       <div className="tr-table-wrap">
@@ -65,19 +67,19 @@ export default function TransporteurPage({ isModalOpen, onCloseModal, showArchiv
         <div className="tr-footer">
           <div className="tr-footer-left">
             <span className="tr-sync-dot" />
-            <span className="tr-sync-label">BASE DE DONNÉES SYNCHRONISÉE</span>
-            {lastUpdated && <span className="tr-sync-time">Mis à jour il y a {formatLastUpdated(lastUpdated)}</span>}
+            <span className="tr-sync-label">{t('transpPage.syncLabel')}</span>
+            {lastUpdated && <span className="tr-sync-time">{t('transpPage.syncTime')} {formatLastUpdated(lastUpdated)}</span>}
           </div>
           <div className="tr-footer-right">
-            <button className="tr-footer-btn">EXPORTER EN CSV</button>
-            <button className="tr-footer-btn">RAPPORT MENSUEL</button>
+            <button className="tr-footer-btn">{t('transpPage.exportCsv')}</button>
+            <button className="tr-footer-btn">{t('transpPage.monthlyReport')}</button>
           </div>
         </div>
       </div>
 
       <div className="tr-pagination">
         <span className="agri-pag-info">
-          Affichage de {pageStart}–{pageEnd} sur {activeTotal.toLocaleString('fr-FR')}
+          {t('cmdPage.showing')} {pageStart}–{pageEnd} {t('cmdPage.of')} {activeTotal.toLocaleString('fr-FR')}
         </span>
         <div className="agri-pag-pages">
           <button className="page-btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>‹</button>

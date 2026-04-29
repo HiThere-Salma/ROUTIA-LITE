@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Search, Truck, X, ChevronDown, ChevronLeft, ChevronRight, Check, Navigation, AlertTriangle, Loader, MapPin, Calendar, Clock, Route, Pencil, Trash2, Mail, Phone } from 'lucide-react'
 import { getSupabaseClient } from '../lib/supabase/supabase.client'
 
@@ -34,10 +35,10 @@ type NavModal =
   | { type: 'noCommandes' }
 
 const STATUT_MAP: Record<RouteData['statut'], { label: string; className: string }> = {
-  en_cours: { label: 'En cours', className: 'rt-status--encours' },
-  terminee: { label: 'Terminée', className: 'rt-status--terminee' },
-  planifiee: { label: 'Planifiée', className: 'rt-status--planifiee' },
-  annulee: { label: 'Annulée', className: 'rt-status--annulee' },
+  en_cours:  { label: 'En cours',   className: 'rt-status--encours' },
+  terminee:  { label: 'Terminée',   className: 'rt-status--terminee' },
+  planifiee: { label: 'Planifiée',  className: 'rt-status--planifiee' },
+  annulee:   { label: 'Annulée',   className: 'rt-status--annulee' },
 }
 
 const ROUTE_TO_CMD_STATUT: Record<RouteData['statut'], string> = {
@@ -48,6 +49,15 @@ const ROUTE_TO_CMD_STATUT: Record<RouteData['statut'], string> = {
 }
 
 export default function RoutePage() {
+  const { t } = useTranslation()
+  const DAYS   = t('routePage.days',   { returnObjects: true }) as string[]
+  const MONTHS = t('routePage.months', { returnObjects: true }) as string[]
+  const STATUT_LABELS: Record<RouteData['statut'], string> = {
+    en_cours:  t('routePage.statusEnCours'),
+    terminee:  t('routePage.statusTerminee'),
+    planifiee: t('routePage.statusPlanifiee'),
+    annulee:   t('routePage.statusAnnulee'),
+  }
   const [routes, setRoutes] = useState<RouteData[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -443,9 +453,6 @@ export default function RoutePage() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  const DAYS = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
-  const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-
   function getCalendarDays(year: number, month: number) {
     const firstDay = new Date(year, month, 1).getDay()
     const offset = firstDay === 0 ? 6 : firstDay - 1
@@ -569,10 +576,8 @@ export default function RoutePage() {
   return (
     <div className="rt-page">
       <div className="dashboard-hero">
-        <h1 className="dashboard-title">Gestion des Routes</h1>
-        <p className="dashboard-sub">
-          Planifiez, suivez et optimisez l'ensemble des itinéraires de collecte et de livraison.
-        </p>
+        <h1 className="dashboard-title">{t('routes.title')}</h1>
+        <p className="dashboard-sub">{t('routes.sub')}</p>
       </div>
 
       <div className="rt-toolbar">
@@ -581,26 +586,26 @@ export default function RoutePage() {
           <input
             className="rt-search-input"
             type="text"
-            placeholder="Rechercher une route, un transporteur…"
+            placeholder={t('routePage.searchPlaceholder')}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
           />
         </div>
-        <button className="btn-add-agri" onClick={() => setShowModal(true)}>＋ Ajouter une route</button>
+        <button className="btn-add-agri" onClick={() => setShowModal(true)}>{t('routePage.addBtn')}</button>
       </div>
 
       <div className="rt-table-wrap">
         <table className="rt-table">
           <thead>
             <tr>
-              <th>Route</th>
-              <th>Transporteur</th>
-              <th>Date</th>
-              <th>Horaires</th>
-              <th>Distance</th>
-              <th>Commandes</th>
-              <th>Envoyer</th>
-              <th>Statut</th>
+              <th>{t('routePage.thRoute')}</th>
+              <th>{t('routePage.thTransporteur')}</th>
+              <th>{t('routePage.thDate')}</th>
+              <th>{t('routePage.thHoraires')}</th>
+              <th>{t('routePage.thDistance')}</th>
+              <th>{t('routePage.thCommandes')}</th>
+              <th>{t('routePage.thEnvoyer')}</th>
+              <th>{t('routePage.thStatut')}</th>
               <th></th>
             </tr>
           </thead>
@@ -609,14 +614,14 @@ export default function RoutePage() {
               <tr>
                 <td colSpan={9} className="rt-empty">
                   <Loader size={18} className="nv-spin" style={{ marginBottom: 8 }} />
-                  <span>Chargement des routes…</span>
+                  <span>{t('routePage.loading')}</span>
                 </td>
               </tr>
             ) : paginated.length === 0 ? (
               <tr>
                 <td colSpan={9} className="rt-empty">
                   <Route size={20} style={{ marginBottom: 6, opacity: 0.4 }} />
-                  <span>Aucune route trouvée</span>
+                  <span>{t('routePage.empty')}</span>
                 </td>
               </tr>
             ) : (
@@ -656,7 +661,7 @@ export default function RoutePage() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button
                           className="rt-send-btn"
-                          title="Envoyer email"
+                          title={t('routePage.btnSendEmail')}
                           disabled={sendingEmail === r.id}
                           onClick={() => handleSendEmail(r.id, r.transporteur_id, r.date, r.commandeIds)}
                         >
@@ -664,7 +669,7 @@ export default function RoutePage() {
                         </button>
                         <button
                           className="rt-send-btn"
-                          title="Envoyer SMS"
+                          title={t('routePage.btnSendSms')}
                           disabled={sendingSms === r.id}
                           onClick={() => handleSendSms(r.id, r.transporteur_id, r.date, r.commandeIds)}
                         >
@@ -680,12 +685,12 @@ export default function RoutePage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="rt-nav-btn" title="Modifier" onClick={() => handleEdit(r)}>
+                        <button className="rt-nav-btn" title={t('routePage.btnEdit')} onClick={() => handleEdit(r)}>
                           <Pencil size={14} />
                         </button>
                         <button
                           className="rt-nav-btn"
-                          title="Itinéraire"
+                          title={t('routePage.btnItinerary')}
                           onClick={() => handleOpenMaps(r.id)}
                           disabled={loadingRoute === r.id}
                         >
@@ -709,7 +714,7 @@ export default function RoutePage() {
 
         <div className="rt-pagination">
           <span className="rt-pag-info">
-            {Math.min((currentPage - 1) * itemsPerPage + 1, filtered.length)}–{Math.min(currentPage * itemsPerPage, filtered.length)} sur {filtered.length} routes
+            {Math.min((currentPage - 1) * itemsPerPage + 1, filtered.length)}–{Math.min(currentPage * itemsPerPage, filtered.length)} {t('routePage.paginationOf')} {filtered.length} {t('routePage.paginationRoutes')}
           </span>
           <div className="rt-pag-pages">
             <button className="rt-pag-btn" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
@@ -729,16 +734,16 @@ export default function RoutePage() {
         <div className="rt-modal-overlay" onClick={() => setShowModal(false)}>
           <div className="nv-modal" onClick={(e) => e.stopPropagation()}>
             <div className="nv-modal-header">
-              <h2 className="nv-modal-title">{editingRouteId ? 'Modifier la route' : 'Nouvelle route'}</h2>
+              <h2 className="nv-modal-title">{editingRouteId ? t('routePage.modalEditTitle') : t('routePage.modalAddTitle')}</h2>
               <button className="nv-close" onClick={() => { setShowModal(false); resetForm() }}><X size={18} /></button>
             </div>
 
             <form className="nv-modal-body" onSubmit={handleSubmit}>
               <div className="nv-field">
-                <span className="nv-label">Transporteur (valide uniquement)</span>
+                <span className="nv-label">{t('routePage.labelTransporteur')}</span>
                 <div className="nv-select-wrap">
                   <select className="nv-select" value={formTransporteurId} onChange={(e) => setFormTransporteurId(e.target.value)} required>
-                    <option value="">Sélectionner un transporteur</option>
+                    <option value="">{t('routePage.selectTransp')}</option>
                     {transporteurs.map((t) => (
                       <option key={t.id} value={t.id}>{t.nom} {t.prenom}</option>
                     ))}
@@ -749,11 +754,11 @@ export default function RoutePage() {
 
               {editingRouteId && (
                 <div className="nv-field">
-                  <span className="nv-label">Statut</span>
+                  <span className="nv-label">{t('routePage.labelStatut')}</span>
                   <div className="nv-select-wrap">
                     <select className="nv-select" value={formStatut} onChange={(e) => setFormStatut(e.target.value as RouteData['statut'])}>
-                      {Object.entries(STATUT_MAP).map(([key, { label }]) => (
-                        <option key={key} value={key}>{label}</option>
+                      {Object.entries(STATUT_MAP).map(([key]) => (
+                        <option key={key} value={key}>{STATUT_LABELS[key as RouteData['statut']]}</option>
                       ))}
                     </select>
                     <ChevronDown size={14} className="nv-select-chevron" />
@@ -763,7 +768,7 @@ export default function RoutePage() {
 
               <div className="nv-row-3">
                 <div className="nv-field" ref={calRef}>
-                  <span className="nv-label">Date</span>
+                  <span className="nv-label">{t('routePage.labelDate')}</span>
                   <button type="button" className="nv-picker-btn" onClick={() => { setShowCalendar((o) => !o); setShowTimeStart(false); setShowTimeEnd(false) }}>
                     <span className={formDate ? 'nv-picker-value' : 'nv-picker-placeholder'}>{formDate ? formatDisplayDate(formDate) : 'jj/mm/aaaa'}</span>
                     <Calendar size={14} className="nv-picker-icon" />
@@ -796,7 +801,7 @@ export default function RoutePage() {
                 </div>
 
                 <div className="nv-field" ref={timeStartRef}>
-                  <span className="nv-label">Heure début</span>
+                  <span className="nv-label">{t('routePage.labelHeureDebut')}</span>
                   <button type="button" className="nv-picker-btn" onClick={() => { setShowTimeStart((o) => !o); setShowTimeEnd(false); setShowCalendar(false) }}>
                     <span className={formHeureDepart ? 'nv-picker-value' : 'nv-picker-placeholder'}>{formHeureDepart || '--:--'}</span>
                     <Clock size={14} className="nv-picker-icon" />
@@ -832,7 +837,7 @@ export default function RoutePage() {
                 </div>
 
                 <div className="nv-field" ref={timeEndRef}>
-                  <span className="nv-label">Heure fin</span>
+                  <span className="nv-label">{t('routePage.labelHeureFin')}</span>
                   <button type="button" className="nv-picker-btn" onClick={() => { setShowTimeEnd((o) => !o); setShowTimeStart(false); setShowCalendar(false) }}>
                     <span className={formHeureFin ? 'nv-picker-value' : 'nv-picker-placeholder'}>{formHeureFin || '--:--'}</span>
                     <Clock size={14} className="nv-picker-icon" />
@@ -869,10 +874,10 @@ export default function RoutePage() {
               </div>
 
               <div className="nv-field">
-                <span className="nv-label">Commandes disponibles</span>
+                <span className="nv-label">{t('routePage.labelCommandes')}</span>
                 <div className="nv-cmd-list">
                   {commandesOptions.length === 0 ? (
-                    <div className="nv-cmd-empty">Aucune commande disponible</div>
+                    <div className="nv-cmd-empty">{t('routePage.noCommandesAvail')}</div>
                   ) : (
                     commandesOptions.map((c) => {
                       const selected = formCommandeIds.includes(c.id)
@@ -901,7 +906,7 @@ export default function RoutePage() {
 
               <button type="submit" className="nv-submit" disabled={submitting || !formTransporteurId || formCommandeIds.length === 0}>
                 {submitting ? <Loader size={16} className="nv-spin" /> : <Navigation size={16} />}
-                <span>{submitting ? 'Enregistrement…' : editingRouteId ? 'Enregistrer les modifications' : 'Générer & Optimiser'}</span>
+                <span>{submitting ? t('routePage.saving') : editingRouteId ? t('routePage.btnSaveEdit') : t('routePage.btnSubmit')}</span>
               </button>
             </form>
           </div>
@@ -914,18 +919,18 @@ export default function RoutePage() {
             <div className="rt-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <AlertTriangle size={18} color="#f87171" />
-                <h2 className="rt-modal-title">Supprimer la route</h2>
+                <h2 className="rt-modal-title">{t('routePage.deleteTitle')}</h2>
               </div>
               <button className="rt-modal-close" onClick={() => setDeleteRouteId(null)} disabled={deleting}><X size={18} /></button>
             </div>
             <div className="rt-modal-form">
               <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Êtes-vous sûr de vouloir supprimer la route <strong>#{String(deleteRouteId).slice(0, 8)}</strong> ? Les commandes associées seront désassignées.
+                {t('routePage.deleteMsg')} <strong>#{String(deleteRouteId).slice(0, 8)}</strong>. {t('routePage.deleteWarning')}
               </p>
               <div className="rt-modal-actions">
-                <button type="button" className="rt-btn-cancel" onClick={() => setDeleteRouteId(null)} disabled={deleting}>Annuler</button>
+                <button type="button" className="rt-btn-cancel" onClick={() => setDeleteRouteId(null)} disabled={deleting}>{t('common.cancel')}</button>
                 <button type="button" className="rt-btn-submit" style={{ background: '#ef4444' }} onClick={handleDelete} disabled={deleting}>
-                  {deleting ? <Loader size={14} className="nv-spin" /> : 'Supprimer'}
+                  {deleting ? <Loader size={14} className="nv-spin" /> : t('routePage.btnDelete')}
                 </button>
               </div>
             </div>
@@ -941,19 +946,19 @@ export default function RoutePage() {
                 <div className="rt-modal-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Navigation size={18} color="var(--green)" />
-                    <h2 className="rt-modal-title">Adresse de départ</h2>
+                    <h2 className="rt-modal-title">{t('routePage.navInputTitle')}</h2>
                   </div>
                   <button className="rt-modal-close" onClick={() => setNavModal({ type: 'none' })}><X size={18} /></button>
                 </div>
                 <div className="rt-modal-form">
                   <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    Entrez votre adresse actuelle pour générer un itinéraire optimisé.
+                    {t('routePage.navInputMsg')}
                   </p>
                   <input ref={navInputRef} className="rt-form-input" placeholder="Ex: 1234 Rue Sainte-Catherine, Montréal, QC"
                     value={navInput} onChange={(e) => setNavInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleConfirmAddress()} />
                   <div className="rt-modal-actions">
-                    <button type="button" className="rt-btn-cancel" onClick={() => setNavModal({ type: 'none' })}>Annuler</button>
-                    <button type="button" className="rt-btn-submit" onClick={handleConfirmAddress} disabled={!navInput.trim()}>Ouvrir l'itinéraire</button>
+                    <button type="button" className="rt-btn-cancel" onClick={() => setNavModal({ type: 'none' })}>{t('common.cancel')}</button>
+                    <button type="button" className="rt-btn-submit" onClick={handleConfirmAddress} disabled={!navInput.trim()}>{t('routePage.navOpen')}</button>
                   </div>
                 </div>
               </>
@@ -963,18 +968,17 @@ export default function RoutePage() {
                 <div className="rt-modal-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <AlertTriangle size={18} color="#fbbf24" />
-                    <h2 className="rt-modal-title">Adresses imprécises</h2>
+                    <h2 className="rt-modal-title">{t('routePage.navWarningTitle')}</h2>
                   </div>
                   <button className="rt-modal-close" onClick={() => setNavModal({ type: 'none' })}><X size={18} /></button>
                 </div>
                 <div className="rt-modal-form">
                   <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                    Les adresses des commandes sont trop imprécises pour optimiser l'itinéraire.<br /><br />
-                    <span style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>Exemple valide : "1234 Rue Sainte-Catherine, Montréal, QC"</span>
+                    {t('routePage.navWarningMsg')}
                   </p>
                   <div className="rt-modal-actions">
-                    <button type="button" className="rt-btn-cancel" onClick={() => setNavModal({ type: 'none' })}>Annuler</button>
-                    <button type="button" className="rt-btn-submit" onClick={() => { openGoogleMaps(navModal.allAddresses); setNavModal({ type: 'none' }) }}>Ouvrir sans optimisation</button>
+                    <button type="button" className="rt-btn-cancel" onClick={() => setNavModal({ type: 'none' })}>{t('common.cancel')}</button>
+                    <button type="button" className="rt-btn-submit" onClick={() => { openGoogleMaps(navModal.allAddresses); setNavModal({ type: 'none' }) }}>{t('routePage.navOpenWithout')}</button>
                   </div>
                 </div>
               </>
@@ -984,16 +988,16 @@ export default function RoutePage() {
                 <div className="rt-modal-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <AlertTriangle size={18} color="#f87171" />
-                    <h2 className="rt-modal-title">Aucune commande</h2>
+                    <h2 className="rt-modal-title">{t('routePage.navNoCommandesTitle')}</h2>
                   </div>
                   <button className="rt-modal-close" onClick={() => setNavModal({ type: 'none' })}><X size={18} /></button>
                 </div>
                 <div className="rt-modal-form">
                   <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    Aucune commande n'est associée à cette route. Impossible de générer un itinéraire.
+                    {t('routePage.navNoCommandesMsg')}
                   </p>
                   <div className="rt-modal-actions" style={{ justifyContent: 'flex-end' }}>
-                    <button type="button" className="rt-btn-submit" onClick={() => setNavModal({ type: 'none' })}>Fermer</button>
+                    <button type="button" className="rt-btn-submit" onClick={() => setNavModal({ type: 'none' })}>{t('common.close')}</button>
                   </div>
                 </div>
               </>

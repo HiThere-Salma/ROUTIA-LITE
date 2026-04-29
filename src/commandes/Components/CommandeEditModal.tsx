@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Save } from "lucide-react";
 import CommandeStatusBadge from "./CommandeStatusBadge";
 import AddressAutocompleteInput from "./AddressAutocompleteInput";
@@ -116,6 +117,7 @@ export default function CommandeEditModal({
   onClose,
   onSaved,
 }: CommandeEditModalProps) {
+  const { t } = useTranslation()
   const [form, setForm] = useState<CommandeFormValues>({ ...EMPTY_FORM });
   const [agriculteurs, setAgriculteurs] = useState<AgriculteurOption[]>([]);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
@@ -207,28 +209,28 @@ export default function CommandeEditModal({
   };
 
   const isEditMode = mode === "edit";
-  const title = isEditMode ? "Modifier la commande" : "Nouvelle commande";
+  const title = isEditMode ? t('cmdModal.editTitleEdit') : t('cmdModal.editTitleCreate');
   const selectedRoute = routes.find((route) => route.id === form.route_id) ?? null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.agriculteur_id) {
-      setSaveError("Veuillez selectionner un agriculteur.");
+      setSaveError(t('cmdModal.errNoAgri'));
       return;
     }
     if (!form.date_collecte || !form.adresse_collecte || !form.adresse_livraison || !form.produit) {
-      setSaveError("Veuillez remplir les champs obligatoires de la commande.");
+      setSaveError(t('cmdModal.errMissingFields'));
       return;
     }
     if (!isCollecteAddressSelected || !isLivraisonAddressSelected) {
-      setSaveError("Veuillez choisir les adresses dans les suggestions Mapbox avant de sauvegarder.");
+      setSaveError(t('cmdModal.errAddresses'));
       return;
     }
 
     const payload = toMutationPayload(form);
 
     if (isEditMode && !rawId) {
-      setSaveError("ID de commande introuvable, impossible de sauvegarder.");
+      setSaveError(t('cmdModal.errNoId'));
       return;
     }
 
@@ -244,7 +246,7 @@ export default function CommandeEditModal({
         onSaved((created ?? {}) as CommandeData, "create");
       }
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Erreur lors de la sauvegarde.");
+      setSaveError(err instanceof Error ? err.message : t('cmdModal.errSave'));
     } finally {
       setSaving(false);
     }
@@ -260,7 +262,7 @@ export default function CommandeEditModal({
           </div>
           <div className="cmd-modal-header-right">
             <CommandeStatusBadge status={statusLabel} />
-            <button className="cmd-modal-close" onClick={onClose} type="button" aria-label="Fermer">
+            <button className="cmd-modal-close" onClick={onClose} type="button" aria-label={t('common.close')}>
               <X size={18} />
             </button>
           </div>
@@ -269,7 +271,7 @@ export default function CommandeEditModal({
         <form className="cmd-modal-body" onSubmit={handleSubmit}>
           <div className="cmd-edit-grid">
             <div className="cmd-modal-field">
-              <label className="cmd-modal-field-label" htmlFor="cmd-agriculteur-id">Agriculteur</label>
+              <label className="cmd-modal-field-label" htmlFor="cmd-agriculteur-id">{t('cmdModal.agriculteur')}</label>
               <select
                 id="cmd-agriculteur-id"
                 className="cmd-edit-input"
@@ -278,7 +280,7 @@ export default function CommandeEditModal({
                 required
                 disabled={saving || loadingOptions}
               >
-                <option value="">-- Choisir un agriculteur --</option>
+                <option value="">{t('cmdModal.chooseAgri')}</option>
                 {agriculteurs.map((agriculteur) => (
                   <option key={agriculteur.id} value={agriculteur.id}>
                     {`${agriculteur.nom} ${agriculteur.prenom} (ID ${agriculteur.id})`}
@@ -288,7 +290,7 @@ export default function CommandeEditModal({
             </div>
 
             <div className="cmd-modal-field">
-              <label className="cmd-modal-field-label" htmlFor="cmd-date-collecte">Date collecte</label>
+              <label className="cmd-modal-field-label" htmlFor="cmd-date-collecte">{t('cmdModal.labelDate')}</label>
               <input
                 id="cmd-date-collecte"
                 className="cmd-edit-input"
@@ -302,7 +304,7 @@ export default function CommandeEditModal({
             </div>
 
             <div className="cmd-modal-field">
-              <label className="cmd-modal-field-label" htmlFor="cmd-heure-livraison">Heure livraison</label>
+              <label className="cmd-modal-field-label" htmlFor="cmd-heure-livraison">{t('cmdModal.labelHeure')}</label>
               <input
                 id="cmd-heure-livraison"
                 className="cmd-edit-input"
@@ -314,7 +316,7 @@ export default function CommandeEditModal({
             </div>
 
             <div className="cmd-modal-field">
-              <label className="cmd-modal-field-label" htmlFor="cmd-distance-estimee">Distance estimee</label>
+              <label className="cmd-modal-field-label" htmlFor="cmd-distance-estimee">{t('cmdModal.labelDistance')}</label>
               <input
                 id="cmd-distance-estimee"
                 className="cmd-edit-input"
@@ -329,7 +331,7 @@ export default function CommandeEditModal({
 
             <AddressAutocompleteInput
               id="cmd-adresse-collecte"
-              label="Adresse collecte"
+              label={t('cmdModal.labelAdresseCollecte')}
               value={form.adresse_collecte}
               onChange={(value) => handleChange("adresse_collecte", value)}
               isSelected={isCollecteAddressSelected}
@@ -337,12 +339,12 @@ export default function CommandeEditModal({
               onSelectionStateChange={setIsCollecteAddressSelected}
               required
               disabled={saving}
-              placeholder="Saisir l'adresse de collecte"
+              placeholder={t('cmdModal.placeholderCollecte')}
             />
 
             <AddressAutocompleteInput
               id="cmd-adresse-livraison"
-              label="Adresse livraison"
+              label={t('cmdModal.labelAdresseLivraison')}
               value={form.adresse_livraison}
               onChange={(value) => handleChange("adresse_livraison", value)}
               isSelected={isLivraisonAddressSelected}
@@ -350,7 +352,7 @@ export default function CommandeEditModal({
               onSelectionStateChange={setIsLivraisonAddressSelected}
               required
               disabled={saving}
-              placeholder="Saisir l'adresse de livraison"
+              placeholder={t('cmdModal.placeholderLivraison')}
             />
 
             <div className="cmd-modal-field cmd-edit-span-2">
@@ -398,12 +400,12 @@ export default function CommandeEditModal({
             </div>
           </div>
 
-          <section className="cmd-route-association">
-            <h3 className="cmd-route-association-title">Association optionnelle a une route</h3>
+            <section className="cmd-route-association">
+            <h3 className="cmd-route-association-title">{t('cmdModal.routeSection')}</h3>
             {loadingOptions ? (
-              <p className="cmd-route-association-empty">Chargement des routes...</p>
+              <p className="cmd-route-association-empty">{t('cmdModal.loadingRoutes')}</p>
             ) : routes.length === 0 ? (
-              <p className="cmd-route-association-empty">Aucune route disponible.</p>
+              <p className="cmd-route-association-empty">{t('cmdModal.noRoutes')}</p>
             ) : (
               <div className="cmd-route-association-list">
                 <input
@@ -411,7 +413,7 @@ export default function CommandeEditModal({
                   type="text"
                   value={routeSearch}
                   onChange={(e) => setRouteSearch(e.target.value)}
-                  placeholder="Rechercher route (ID) ou transporteur"
+                  placeholder={t('cmdModal.routeSearchPlaceholder')}
                   disabled={saving}
                 />
 
@@ -424,8 +426,8 @@ export default function CommandeEditModal({
                     disabled={saving}
                   />
                   <span className="cmd-route-association-copy">
-                    <span className="cmd-route-association-primary">Aucune route</span>
-                    <span className="cmd-route-association-secondary">La commande reste non associee.</span>
+                    <span className="cmd-route-association-primary">{t('cmdModal.noRoute')}</span>
+                    <span className="cmd-route-association-secondary">{t('cmdModal.noRouteSub')}</span>
                   </span>
                 </label>
 
@@ -449,28 +451,28 @@ export default function CommandeEditModal({
                 })}
 
                 {filteredRoutes.length === 0 && (
-                  <p className="cmd-route-association-empty">Aucune route ne correspond a la recherche.</p>
+                  <p className="cmd-route-association-empty">{t('cmdModal.noRouteMatch')}</p>
                 )}
 
                 {form.route_id && (
                   <p className="cmd-route-association-help">
-                    Route selectionnee: {selectedRoute ? routeLabel(selectedRoute) : "Inconnue"}
+                    {t('cmdModal.selectedRoute')} {selectedRoute ? routeLabel(selectedRoute) : "Inconnue"}
                   </p>
                 )}
               </div>
             )}
-            <p className="cmd-route-association-help">Une seule route peut etre associee a la commande.</p>
+            <p className="cmd-route-association-help">{t('cmdModal.routeHelp')}</p>
           </section>
 
           {saveError && <p className="cmd-edit-error">{saveError}</p>}
 
           <div className="cmd-edit-footer">
             <button className="agri-btn-outline" type="button" onClick={onClose}>
-              Annuler
+              {t('common.cancel')}
             </button>
             <button className="btn-add-agri" type="submit" disabled={saving}>
               <Save size={14} />
-              {saving ? "Sauvegarde..." : isEditMode ? "Mettre a jour" : "Creer la commande"}
+              {saving ? t('cmdModal.savingBtn') : isEditMode ? t('cmdModal.updateBtn') : t('cmdModal.createBtn')}
             </button>
           </div>
         </form>

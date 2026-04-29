@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAgriculteurs } from '../hooks/useAgriculteurs'
 import { useArchivedAgriculteurs } from '../hooks/useArchivedAgriculteurs'
 import { useArchiveAgriculteur } from '../hooks/useArchiveAgriculteur'
@@ -13,6 +14,7 @@ import { formatLastUpdated } from '../utils/agriculteur.utils'
 import type { Agriculteur } from '../types/agriculteur.types'
 
 export default function AgriculteurPage({ isModalOpen, onCloseModal, showArchived }: { isModalOpen: boolean; onCloseModal: () => void; showArchived: boolean }) {
+  const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const { agriculteurs, total, isLoading, errorMessage, lastUpdated, refresh } = useAgriculteurs(page)
   const { agriculteurs: archivedAgriculteurs, total: archivedTotal, isLoading: isLoadingArchived, errorMessage: archivedError, refresh: refreshArchived } = useArchivedAgriculteurs(page)
@@ -40,13 +42,13 @@ export default function AgriculteurPage({ isModalOpen, onCloseModal, showArchive
   return (
     <div className="agri-page">
       <div className="dashboard-hero">
-        <h1 className="dashboard-title">Gestion des Agriculteurs</h1>
-        <p className="dashboard-sub">Pilotez votre réseau de producteurs et optimisez les points de collecte.</p>
+        <h1 className="dashboard-title">{t('agriculteurs.title')}</h1>
+        <p className="dashboard-sub">{t('agriculteurs.sub')}</p>
       </div>
 
       <div className="agri-toolbar">
-        <button className="agri-btn-outline">⊟ Filtrer</button>
-        <button className="agri-btn-outline">Exporter CSV</button>
+        <button className="agri-btn-outline">{t('agriPage.filter')}</button>
+        <button className="agri-btn-outline">{t('agriPage.exportCsv')}</button>
         {lastUpdated && <span className="agri-toolbar-updated">{formatLastUpdated(lastUpdated)}</span>}
       </div>
 
@@ -70,7 +72,7 @@ export default function AgriculteurPage({ isModalOpen, onCloseModal, showArchive
 
         <div className="agri-pagination">
           <span className="agri-pag-info">
-            Affichage de {pageStart}–{pageEnd} sur {activeTotal.toLocaleString('fr-FR')}
+            {t('cmdPage.showing')} {pageStart}–{pageEnd} {t('cmdPage.of')} {activeTotal.toLocaleString('fr-FR')}
           </span>
           <div className="agri-pag-pages">
             <button className="page-btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>‹</button>

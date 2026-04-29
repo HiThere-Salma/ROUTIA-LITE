@@ -1,127 +1,67 @@
 import type { FormEvent } from 'react'
-import { useEffect, useMemo, useState } from 'react'
-import { Loader, Mail, MapPin, Phone, Search, Shield, UserPlus, X } from 'lucide-react'
-import AddressAutocompleteInput from '../components/AddressAutocompleteInput'
-import { getSupabaseClient } from '../lib/supabase'
-
-type CurrentAdmin = {
-  id: string
-  issuper?: boolean | null
-}
+import { useMemo, useState } from 'react'
+import { Mail, Phone, Search, Shield, UserPlus, X } from 'lucide-react'
 
 type AdminRow = {
   id: string
-  nom: string | null
-  nom_complet?: string | null
-  prenom: string | null
-  email: string
-  numero_tel: string | null
-  adresse: string | null
-  issuper: boolean | null
-}
-
-type AdminForm = {
   nom: string
   prenom: string
   email: string
   tel: string
-  adresse: string
-  password: string
+  role: string
+  statut: 'Actif' | 'Invitation envoyee'
 }
 
-const EMPTY_FORM: AdminForm = {
+const initialAdmins: AdminRow[] = [
+  {
+    id: 'ADM-001',
+    nom: 'Bennani',
+    prenom: 'Salma',
+    email: 'salma.bennani@routia.ma',
+    tel: '+212 661-100200',
+    role: 'Super admin',
+    statut: 'Actif',
+  },
+  {
+    id: 'ADM-002',
+    nom: 'El Idrissi',
+    prenom: 'Yassine',
+    email: 'y.elidrissi@routia.ma',
+    tel: '+212 662-300400',
+    role: 'Support operations',
+    statut: 'Actif',
+  },
+  {
+    id: 'ADM-003',
+    nom: 'Alaoui',
+    prenom: 'Nadia',
+    email: 'nadia.alaoui@routia.ma',
+    tel: '+212 663-450780',
+    role: 'Gestion flotte',
+    statut: 'Invitation envoyee',
+  },
+]
+
+const EMPTY_FORM = {
   nom: '',
   prenom: '',
   email: '',
   tel: '',
-  adresse: '',
-  password: '',
+  role: '',
 }
 
-type AdminManagementPageProps = {
-  currentAdmin: CurrentAdmin
-}
-
-function mapSignupErrorMessage(rawMessage: string) {
-  const msg = rawMessage.toLowerCase()
-
-  if (msg.includes('user already registered')) {
-    return 'Cet email est déjà utilisé. Choisissez un autre email.'
-  }
-
-  if (msg.includes('signups not allowed')) {
-    return "Les inscriptions sont désactivées dans Supabase (Auth > Providers > Email)."
-  }
-
-  if (msg.includes('password')) {
-    return 'Mot de passe invalide. Utilisez au moins 6 caractères (8 recommandé).'
-  }
-
-  if (msg.includes('email')) {
-    return 'Email invalide. Vérifiez le format saisi.'
-  }
-
-  return `Erreur de création du compte: ${rawMessage}`
-}
-
-function mapAdminInsertErrorMessage(rawMessage: string) {
-  const msg = rawMessage.toLowerCase()
-
-  if (msg.includes('row-level security')) {
-    return "Insertion refusée par les règles RLS de la table admin."
-  }
-
-  if (msg.includes('invalid input syntax') && msg.includes('id')) {
-    return "Le champ id de la table admin n'accepte pas l'UUID Auth."
-  }
-
-  if (msg.includes('duplicate key') || msg.includes('unique')) {
-    return "Un admin avec cet email (ou identifiant) existe déjà dans la table admin."
-  }
-
-  return `Insertion admin échouée: ${rawMessage}`
-}
-
-export default function AdminManagementPage({ currentAdmin }: AdminManagementPageProps) {
-  const [admins, setAdmins] = useState<AdminRow[]>([])
+export default function AdminManagementPage() {
+  const [admins, setAdmins] = useState(initialAdmins)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-
-  async function fetchAdmins() {
-    setLoading(true)
-    setError('')
-    const supabase = getSupabaseClient()
-    const { data, error: fetchError } = await supabase
-      .from('admin')
-      .select('*')
-
-    if (fetchError) {
-      setError(`Impossible de charger la liste des administrateurs: ${fetchError.message}`)
-      setLoading(false)
-      return
-    }
-
-    setAdmins((data as AdminRow[]) ?? [])
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    async function load() { await fetchAdmins() }
-    void load()
-  }, [])
 
   const filteredAdmins = useMemo(() => {
     const query = search.trim().toLowerCase()
     if (!query) return admins
 
     return admins.filter((admin) => {
-      const roleLabel = admin.issuper ? 'Super admin' : 'Admin'
-      const lastName = admin.nom ?? admin.nom_complet ?? ''
-      const haystack = [admin.id, lastName, admin.prenom ?? '', admin.email, roleLabel, admin.numero_tel ?? '', admin.adresse ?? '']
+      const haystack = [admin.id, admin.nom, admin.prenom, admin.email, admin.role, admin.tel]
         .join(' ')
         .toLowerCase()
       return haystack.includes(query)
@@ -131,93 +71,23 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
   function closeModal() {
     setShowModal(false)
     setForm(EMPTY_FORM)
-    setError('')
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!currentAdmin.issuper) {
-      setError("Seul le super admin peut créer des administrateurs.")
-      return
+    const nextAdmin: AdminRow = {
+      id: `ADM-${String(admins.length + 1).padStart(3, '0')}`,
+      nom: form.nom.trim(),
+      prenom: form.prenom.trim(),
+      email: form.email.trim(),
+      tel: form.tel.trim(),
+      role: form.role.trim(),
+      statut: 'Invitation envoyee',
     }
 
-    setSubmitting(true)
-    setError('')
-
-    try {
-      const supabase = getSupabaseClient()
-      const { data: sessionData } = await supabase.auth.getSession()
-      const creatorSession = sessionData.session
-
-      const { data: signupData, error: signupError } = await supabase.auth.signUp({
-        email: form.email.trim(),
-        password: form.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-        },
-      })
-
-      if (signupError || !signupData.user) {
-        setError(mapSignupErrorMessage(signupError?.message ?? "Impossible de créer le compte d'authentification."))
-        setSubmitting(false)
-        return
-      }
-
-      if (creatorSession) {
-        const { error: restoreSessionError } = await supabase.auth.setSession({
-          access_token: creatorSession.access_token,
-          refresh_token: creatorSession.refresh_token,
-        })
-
-        if (restoreSessionError) {
-          setError("Le compte a été créé, mais la session du super admin n'a pas pu être restaurée automatiquement.")
-          setSubmitting(false)
-          return
-        }
-      }
-
-      const baseAdminPayload = {
-        prenom: form.prenom.trim(),
-        nom: form.nom.trim(),
-        email: form.email.trim(),
-        numero_tel: form.tel.trim(),
-        adresse: form.adresse.trim(),
-        issuper: false,
-      }
-
-      let { error: insertError } = await supabase.from('admin').insert({
-        id: signupData.user.id,
-        ...baseAdminPayload,
-      })
-
-      // Fallback for schemas where admin.id is auto-generated (integer/bigint) instead of UUID.
-      if (insertError?.message.toLowerCase().includes('id')) {
-        const retry = await supabase.from('admin').insert(baseAdminPayload)
-        insertError = retry.error
-      }
-
-      if (insertError) {
-        setError(mapAdminInsertErrorMessage(insertError.message))
-        setSubmitting(false)
-        return
-      }
-
-      await fetchAdmins()
-      closeModal()
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  if (!currentAdmin.issuper) {
-    return (
-      <div className="placeholder-page">
-        <div className="placeholder-icon"><Shield size={36} color="var(--border)" /></div>
-        <p className="placeholder-title">Accès refusé</p>
-        <p className="placeholder-sub">Cette page est réservée au super admin (issuper = true).</p>
-      </div>
-    )
+    setAdmins((current) => [nextAdmin, ...current])
+    closeModal()
   }
 
   return (
@@ -225,7 +95,7 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
       <div className="admin-hero">
         <div>
           <h1 className="dashboard-title">Gestion des administrateurs</h1>
-          <p className="dashboard-sub">Le super admin peut créer des comptes admin. La connexion est possible apres verification email.</p>
+          <p className="dashboard-sub">Supervisez les comptes internes et attribuez les acces de pilotage de la plateforme.</p>
         </div>
         <button className="btn-add-agri" onClick={() => setShowModal(true)}>
           <UserPlus size={16} />
@@ -235,16 +105,16 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
 
       <div className="admin-summary-grid">
         <div className="admin-summary-card">
-          <span className="admin-summary-label">Administrateurs</span>
-          <strong className="admin-summary-value">{admins.length}</strong>
+          <span className="admin-summary-label">Administrateurs actifs</span>
+          <strong className="admin-summary-value">{admins.filter((admin) => admin.statut === 'Actif').length}</strong>
         </div>
         <div className="admin-summary-card">
-          <span className="admin-summary-label">Super admins</span>
-          <strong className="admin-summary-value">{admins.filter((admin) => admin.issuper).length}</strong>
+          <span className="admin-summary-label">Invitations en attente</span>
+          <strong className="admin-summary-value">{admins.filter((admin) => admin.statut === 'Invitation envoyee').length}</strong>
         </div>
         <div className="admin-summary-card">
-          <span className="admin-summary-label">Admins</span>
-          <strong className="admin-summary-value">{admins.filter((admin) => !admin.issuper).length}</strong>
+          <span className="admin-summary-label">Roles distincts</span>
+          <strong className="admin-summary-value">{new Set(admins.map((admin) => admin.role)).size}</strong>
         </div>
       </div>
 
@@ -267,26 +137,13 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
             <tr>
               <th>Administrateur</th>
               <th>Contact</th>
-              <th>Adresse</th>
               <th>Role</th>
+              <th>Statut</th>
             </tr>
           </thead>
           <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={4}>
-                  <div className="panel-empty">
-                    <Loader size={28} color="var(--text-dim)" />
-                    <span>Chargement...</span>
-                  </div>
-                </td>
-              </tr>
-            )}
             {filteredAdmins.map((admin) => {
-              const first = (admin.prenom ?? '').trim()
-              const last = (admin.nom ?? admin.nom_complet ?? '').trim()
-              const initials = `${first[0] ?? 'A'}${last[0] ?? 'D'}`
-              const roleLabel = admin.issuper ? 'Super admin' : 'Admin'
+              const initials = `${admin.prenom[0]}${admin.nom[0]}`
 
               return (
                 <tr key={admin.id}>
@@ -294,7 +151,7 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
                     <div className="admin-name-cell">
                       <span className="admin-avatar">{initials}</span>
                       <div className="admin-name-info">
-                        <span className="admin-fullname">{admin.prenom} {admin.nom ?? admin.nom_complet}</span>
+                        <span className="admin-fullname">{admin.prenom} {admin.nom}</span>
                         <span className="admin-id">{admin.id}</span>
                       </div>
                     </div>
@@ -302,25 +159,24 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
                   <td>
                     <div className="admin-contact-stack">
                       <span><Mail size={14} /> {admin.email}</span>
-                      <span><Phone size={14} /> {admin.numero_tel}</span>
+                      <span><Phone size={14} /> {admin.tel}</span>
                     </div>
-                  </td>
-                  <td>
-                    <span className="admin-address-cell">
-                      <MapPin size={14} />
-                      {admin.adresse || 'Adresse non renseignée'}
-                    </span>
                   </td>
                   <td>
                     <span className="admin-role-pill">
                       <Shield size={14} />
-                      {roleLabel}
+                      {admin.role}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`admin-status admin-status--${admin.statut === 'Actif' ? 'active' : 'pending'}`}>
+                      {admin.statut}
                     </span>
                   </td>
                 </tr>
               )
             })}
-            {!loading && filteredAdmins.length === 0 && (
+            {filteredAdmins.length === 0 && (
               <tr>
                 <td colSpan={4}>
                   <div className="panel-empty">
@@ -340,14 +196,12 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
             <div className="admin-modal-header">
               <div>
                 <h2>Ajouter un administrateur</h2>
-                <p>Créer un compte admin avec email et mot de passe.</p>
+                <p>Creer un nouveau compte d'administration pour Routia.</p>
               </div>
               <button className="icon-btn" onClick={closeModal} title="Fermer">
                 <X size={16} />
               </button>
             </div>
-
-            {error && <div className="login-error">{error}</div>}
 
             <form className="admin-form" onSubmit={handleSubmit}>
               <label>
@@ -386,31 +240,20 @@ export default function AdminManagementPage({ currentAdmin }: AdminManagementPag
                   required
                 />
               </label>
-              <label>
-                Adresse
-                <AddressAutocompleteInput
-                  value={form.adresse}
-                  onChange={(value) => setForm((current) => ({ ...current, adresse: value }))}
-                  placeholder="Commencez a saisir une adresse..."
-                  required
-                />
-              </label>
-              <label>
-                Mot de passe
+              <label className="admin-form-full">
+                Role
                 <input
-                  type="password"
-                  value={form.password}
-                  onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-                  minLength={6}
+                  type="text"
+                  value={form.role}
+                  onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))}
+                  placeholder="Ex. Super admin"
                   required
                 />
               </label>
 
               <div className="admin-form-actions admin-form-full">
                 <button type="button" className="agri-btn-outline" onClick={closeModal}>Annuler</button>
-                <button type="submit" className="btn-add-agri" disabled={submitting}>
-                  {submitting ? 'Création...' : "Ajouter l'administrateur"}
-                </button>
+                <button type="submit" className="btn-add-agri">Ajouter l'administrateur</button>
               </div>
             </form>
           </div>
