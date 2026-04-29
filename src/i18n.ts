@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next'
 
 import fr from './locales/fr.json'
 import ar from './locales/ar.json'
+import en from './locales/en.json'
 
 i18n
   .use(initReactI18next)
@@ -10,6 +11,7 @@ i18n
     resources: {
       fr: { translation: fr },
       ar: { translation: ar },
+      en: { translation: en },
     },
     lng: (localStorage.getItem('lang') as string) ?? 'fr',
     fallbackLng: 'fr',
