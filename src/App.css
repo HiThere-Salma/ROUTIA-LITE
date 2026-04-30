@@ -193,6 +193,65 @@ body {
 }
 
 .icon-btn:hover { background: var(--bg3); }
+n
+/* ── Language Switcher ─────────────────────────── */
+.lang-switcher-btn {
+  width: auto;
+  min-width: 38px;
+  padding: 0 10px;
+  gap: 5px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+
+.lang-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 140px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lang-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  color: var(--text-muted);
+  transition: background 0.12s, color 0.12s;
+}
+
+.lang-option:hover { background: var(--bg3); color: var(--text); }
+
+.lang-option--active {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.lang-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 22px;
+}
+
+.lang-label {
+  font-size: 13px;
+}
 
 .dashboard {
   flex: 1;
@@ -3451,6 +3510,7 @@ body {
 
 .nv-cal-day:hover { background: var(--bg3); color: var(--text); }
 .nv-cal-day--today { color: var(--green); font-weight: 700; }
+.nv-cal-day--past { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
 
 .nv-cal-day--sel {
   background: var(--green) !important;

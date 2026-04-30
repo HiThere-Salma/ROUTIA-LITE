@@ -261,6 +261,60 @@ export default function RoutePage() {
     }
   }
 
+  async function fetchRoutes() {
+    try {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase
+        .from('routes')
+        .select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(nom, prenom), commandes!route_id(id, statut, distance_estimee)')
+        .order('date', { ascending: false })
+
+      if (error) {
+        console.error('Supabase error details:', JSON.stringify(error))
+        throw error
+      }
+
+      const mapped: RouteData[] = (data ?? []).map((r: Record<string, unknown>) => {
+        const utilisateur = r.utilisateurs as { nom: string; prenom: string } | null
+        const cmds = (r.commandes ?? []) as { id: number; statut: string; distance_estimee: number | null }[]
+
+        let statut: RouteData['statut'] = 'planifiee'
+        if (cmds.length > 0) {
+          const allDone = cmds.every((c) => c.statut === 'livree' || c.statut === 'terminee')
+          const allCancelled = cmds.every((c) => c.statut === 'annulee')
+          if (allDone) statut = 'terminee'
+          else if (allCancelled) statut = 'annulee'
+          else statut = 'en_cours'
+        }
+
+        let distance: number | null = (r.distance_totale as number) ?? null
+        if (distance == null && cmds.length > 0) {
+          const sum = cmds.reduce((acc, c) => acc + (c.distance_estimee ?? 0), 0)
+          if (sum > 0) distance = Math.round(sum * 10) / 10
+        }
+
+        return {
+          id: r.id as number,
+          transporteur: utilisateur ? `${utilisateur.nom} ${utilisateur.prenom}` : '—',
+          transporteur_id: (r.transporteur_id as string) ?? '',
+          date: r.date as string,
+          heureDebut: (r.heure_depart as string) ?? '',
+          heureFin: (r.heure_fin as string) ?? '',
+          commandes: cmds.length,
+          commandeIds: cmds.map((c) => String(c.id)),
+          distance,
+          statut,
+        }
+      })
+
+      setRoutes(mapped)
+    } catch (err) {
+      console.error('Erreur chargement routes:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!formTransporteurId || !formDate) return
@@ -498,62 +552,11 @@ export default function RoutePage() {
   }
 
   useEffect(() => {
-    fetchRoutes()
-  }, [])
-
-  async function fetchRoutes() {
-    try {
-      const supabase = getSupabaseClient()
-      const { data, error } = await supabase
-        .from('routes')
-        .select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(nom, prenom), commandes!route_id(id, statut, distance_estimee)')
-        .order('date', { ascending: false })
-
-      if (error) {
-        console.error('Supabase error details:', JSON.stringify(error))
-        throw error
-      }
-
-      const mapped: RouteData[] = (data ?? []).map((r: Record<string, unknown>) => {
-        const utilisateur = r.utilisateurs as { nom: string; prenom: string } | null
-        const cmds = (r.commandes ?? []) as { id: number; statut: string; distance_estimee: number | null }[]
-
-        let statut: RouteData['statut'] = 'planifiee'
-        if (cmds.length > 0) {
-          const allDone = cmds.every((c) => c.statut === 'livree' || c.statut === 'terminee')
-          const allCancelled = cmds.every((c) => c.statut === 'annulee')
-          if (allDone) statut = 'terminee'
-          else if (allCancelled) statut = 'annulee'
-          else statut = 'en_cours'
-        }
-
-        let distance: number | null = (r.distance_totale as number) ?? null
-        if (distance == null && cmds.length > 0) {
-          const sum = cmds.reduce((acc, c) => acc + (c.distance_estimee ?? 0), 0)
-          if (sum > 0) distance = Math.round(sum * 10) / 10
-        }
-
-        return {
-          id: r.id as number,
-          transporteur: utilisateur ? `${utilisateur.nom} ${utilisateur.prenom}` : '—',
-          transporteur_id: (r.transporteur_id as string) ?? '',
-          date: r.date as string,
-          heureDebut: (r.heure_depart as string) ?? '',
-          heureFin: (r.heure_fin as string) ?? '',
-          commandes: cmds.length,
-          commandeIds: cmds.map((c) => String(c.id)),
-          distance,
-          statut,
-        }
-      })
-
-      setRoutes(mapped)
-    } catch (err) {
-      console.error('Erreur chargement routes:', err)
-    } finally {
-      setLoading(false)
+    async function load() {
+      await fetchRoutes()
     }
-  }
+    void load()
+  }, [])
 
   const filtered = routes.filter(
     (r) =>
@@ -632,7 +635,7 @@ export default function RoutePage() {
                       </div>
                     </td>
                     <td>
-                      <span className="rt-date">{r.date ? new Date(r.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
+                      <span className="rt-date">{r.date ? (() => { const [y, m, d] = r.date.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) })() : '—'}</span>
                     </td>
                     <td>
                       <div className="rt-horaires">
@@ -769,7 +772,7 @@ export default function RoutePage() {
                   {showCalendar && (
                     <div className="nv-calendar">
                       <div className="nv-cal-nav">
-                        <button type="button" onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }}><ChevronLeft size={14} /></button>
+                        <button type="button" onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }} disabled={calYear === new Date().getFullYear() && calMonth === new Date().getMonth()}><ChevronLeft size={14} /></button>
                         <span className="nv-cal-title">{MONTHS[calMonth]} {calYear}</span>
                         <button type="button" onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }}><ChevronRight size={14} /></button>
                       </div>
@@ -780,8 +783,10 @@ export default function RoutePage() {
                           const iso = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                           const isSelected = iso === formDate
                           const isToday = iso === new Date().toISOString().slice(0, 10)
+                          const todayIso = new Date().toISOString().slice(0, 10)
+                          const isPast = !editingRouteId && iso < todayIso
                           return (
-                            <button key={i} type="button" className={`nv-cal-day${isSelected ? ' nv-cal-day--sel' : ''}${isToday ? ' nv-cal-day--today' : ''}`} onClick={() => selectDate(day)}>
+                            <button key={i} type="button" className={`nv-cal-day${isSelected ? ' nv-cal-day--sel' : ''}${isToday ? ' nv-cal-day--today' : ''}${isPast ? ' nv-cal-day--past' : ''}`} onClick={() => !isPast && selectDate(day)} disabled={isPast}>
                               {day}
                             </button>
                           )

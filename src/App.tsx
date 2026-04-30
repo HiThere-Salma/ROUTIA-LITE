@@ -8,6 +8,7 @@ import RoutePage from './pages/RoutePage'
 import CommandesPage from './commandes/Pages/CommandesPage'
 import LoginPage from './pages/LoginPage'
 import AdminManagementPage from './pages/AdminManagementPage'
+import LanguageSwitcher from './components/LanguageSwitcher'
 
 type Admin = {
   id: string
@@ -102,13 +103,43 @@ function App() {
     { label: 'Gestion des commandes', icon: <ClipboardList size={16} /> },
   ]
 
+  async function fetchDashboardData() {
+    setLoading(true)
+    try {
+      const supabase = getSupabaseClient()
+      const [
+        { data: allCommandes },
+        { data: recentCommandes },
+        { data: transporteurs },
+        { data: recentRoutes },
+      ] = await Promise.all([
+        supabase.from('commandes').select('statut'),
+        supabase.from('commandes').select('id, produit, prix, statut, date_collecte, agriculteur_id, utilisateurs!agriculteur_id(prenom, nom)').order('date_collecte', { ascending: false }).limit(5),
+        supabase.from('utilisateurs').select('id').eq('role', 'transporteur'),
+        supabase.from('routes').select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(prenom, nom)').order('date', { ascending: false }).limit(3),
+      ])
+      const total = allCommandes?.length ?? 0
+      const enCours = allCommandes?.filter(c => c.statut === 'en_attente' || c.statut === 'assignee' || c.statut === 'recuperee' || c.statut === 'en_transport').length ?? 0
+      const livres = allCommandes?.filter(c => c.statut === 'livree').length ?? 0
+      setStats({ totalCommandes: total, commandesEnCours: enCours, transporteursActifs: transporteurs?.length ?? 0, livraisonsCompletes: livres })
+      setCommandes((recentCommandes as unknown as Commande[]) ?? [])
+      setRoutes((recentRoutes as unknown as Route[]) ?? [])
+    } catch (err) {
+      console.error('Erreur Supabase:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    if (admin) fetchDashboardData()
+    if (!admin) return
+    async function load() { await fetchDashboardData() }
+    void load()
   }, [admin])
 
   useEffect(() => {
     if (!admin?.issuper && active === 'Gestion des administrateurs') {
-      setActive('Dashboard')
+      queueMicrotask(() => setActive('Dashboard'))
     }
   }, [admin, active])
 
@@ -153,34 +184,6 @@ function App() {
   async function handleLogout() {
     await getSupabaseClient().auth.signOut()
     setAdmin(null)
-  }
-
-  async function fetchDashboardData() {
-    setLoading(true)
-    try {
-      const supabase = getSupabaseClient()
-      const [
-        { data: allCommandes },
-        { data: recentCommandes },
-        { data: transporteurs },
-        { data: recentRoutes },
-      ] = await Promise.all([
-        supabase.from('commandes').select('statut'),
-        supabase.from('commandes').select('id, produit, prix, statut, date_collecte, agriculteur_id, utilisateurs!agriculteur_id(prenom, nom)').order('date_collecte', { ascending: false }).limit(5),
-        supabase.from('utilisateurs').select('id').eq('role', 'transporteur'),
-        supabase.from('routes').select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(prenom, nom)').order('date', { ascending: false }).limit(3),
-      ])
-      const total = allCommandes?.length ?? 0
-      const enCours = allCommandes?.filter(c => c.statut === 'en_attente' || c.statut === 'assignee' || c.statut === 'recuperee' || c.statut === 'en_transport').length ?? 0
-      const livres = allCommandes?.filter(c => c.statut === 'livree').length ?? 0
-      setStats({ totalCommandes: total, commandesEnCours: enCours, transporteursActifs: transporteurs?.length ?? 0, livraisonsCompletes: livres })
-      setCommandes((recentCommandes as unknown as Commande[]) ?? [])
-      setRoutes((recentRoutes as unknown as Route[]) ?? [])
-    } catch (err) {
-      console.error('Erreur Supabase:', err)
-    } finally {
-      setLoading(false)
-    }
   }
 
   const statsCards = [
@@ -265,6 +268,7 @@ function App() {
             {active === 'Gestion des transporteurs' && (
               <button className="btn-add-agri" onClick={() => setIsTrModalOpen(true)}>＋ Ajouter un transporteur</button>
             )}
+            <LanguageSwitcher />
             <button className="icon-btn"><Bell size={16} /></button>
             <button className="icon-btn"><Settings size={16} /></button>
           </div>
