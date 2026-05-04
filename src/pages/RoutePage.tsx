@@ -680,7 +680,7 @@ export default function RoutePage() {
                     <td>
                       <span className={`rt-status-pill ${st.className}`}>
                         <span className="rt-status-dot" />
-                        {st.label}
+                        {STATUT_LABELS[r.statut]}
                       </span>
                     </td>
                     <td>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader, Mail, Lock, Truck, MapPin, Package, ArrowRight } from 'lucide-react'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 type LoginPageProps = {
   onSubmit: (email: string, password: string) => void
@@ -62,6 +63,9 @@ export default function LoginPage({ onSubmit, error, loading }: LoginPageProps) 
 
       {/* Right form panel */}
       <div className="login-form-panel">
+        <div className="login-lang-switcher">
+          <LanguageSwitcher />
+        </div>
         <div className="login-card">
           <div className="login-card-badge">{t('login.badge')}</div>
 

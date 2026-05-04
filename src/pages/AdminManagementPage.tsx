@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Mail, Phone, Search, Shield, UserPlus, X } from 'lucide-react'
 
 type AdminRow = {
@@ -51,6 +52,7 @@ const EMPTY_FORM = {
 }
 
 export default function AdminManagementPage() {
+  const { t } = useTranslation()
   const [admins, setAdmins] = useState(initialAdmins)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -94,26 +96,26 @@ export default function AdminManagementPage() {
     <div className="admin-page">
       <div className="admin-hero">
         <div>
-          <h1 className="dashboard-title">Gestion des administrateurs</h1>
-          <p className="dashboard-sub">Supervisez les comptes internes et attribuez les acces de pilotage de la plateforme.</p>
+          <h1 className="dashboard-title">{t('admins.title')}</h1>
+          <p className="dashboard-sub">{t('adminPage.heroSub')}</p>
         </div>
         <button className="btn-add-agri" onClick={() => setShowModal(true)}>
           <UserPlus size={16} />
-          Ajouter un administrateur
+          {t('adminPage.addBtn')}
         </button>
       </div>
 
       <div className="admin-summary-grid">
         <div className="admin-summary-card">
-          <span className="admin-summary-label">Administrateurs actifs</span>
+          <span className="admin-summary-label">{t('adminPage.cardActifs')}</span>
           <strong className="admin-summary-value">{admins.filter((admin) => admin.statut === 'Actif').length}</strong>
         </div>
         <div className="admin-summary-card">
-          <span className="admin-summary-label">Invitations en attente</span>
+          <span className="admin-summary-label">{t('adminPage.cardPending')}</span>
           <strong className="admin-summary-value">{admins.filter((admin) => admin.statut === 'Invitation envoyee').length}</strong>
         </div>
         <div className="admin-summary-card">
-          <span className="admin-summary-label">Roles distincts</span>
+          <span className="admin-summary-label">{t('adminPage.cardRoles')}</span>
           <strong className="admin-summary-value">{new Set(admins.map((admin) => admin.role)).size}</strong>
         </div>
       </div>
@@ -123,22 +125,22 @@ export default function AdminManagementPage() {
           <Search size={16} />
           <input
             type="search"
-            placeholder="Rechercher un administrateur"
+            placeholder={t('adminPage.searchPlaceholder')}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
-        <span className="agri-toolbar-updated">{filteredAdmins.length} resultat(s)</span>
+        <span className="agri-toolbar-updated">{filteredAdmins.length} {t('adminPage.results')}</span>
       </div>
 
       <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
             <tr>
-              <th>Administrateur</th>
-              <th>Contact</th>
-              <th>Role</th>
-              <th>Statut</th>
+              <th>{t('adminPage.thAdministrateur')}</th>
+              <th>{t('adminPage.thContact')}</th>
+              <th>{t('adminPage.thRole')}</th>
+              <th>{t('routePage.thStatut')}</th>
             </tr>
           </thead>
           <tbody>
@@ -170,7 +172,7 @@ export default function AdminManagementPage() {
                   </td>
                   <td>
                     <span className={`admin-status admin-status--${admin.statut === 'Actif' ? 'active' : 'pending'}`}>
-                      {admin.statut}
+                      {admin.statut === 'Actif' ? t('adminPage.statutActif') : t('adminPage.statutInvite')}
                     </span>
                   </td>
                 </tr>
@@ -181,7 +183,7 @@ export default function AdminManagementPage() {
                 <td colSpan={4}>
                   <div className="panel-empty">
                     <Shield size={28} color="var(--text-dim)" />
-                    <span>Aucun administrateur ne correspond a votre recherche</span>
+                    <span>{t('adminPage.noResults')}</span>
                   </div>
                 </td>
               </tr>
@@ -195,17 +197,17 @@ export default function AdminManagementPage() {
           <div className="admin-modal" onClick={(event) => event.stopPropagation()}>
             <div className="admin-modal-header">
               <div>
-                <h2>Ajouter un administrateur</h2>
-                <p>Creer un nouveau compte d'administration pour Routia.</p>
+                <h2>{t('adminPage.modalTitle')}</h2>
+                <p>{t('adminPage.modalSub')}</p>
               </div>
-              <button className="icon-btn" onClick={closeModal} title="Fermer">
+              <button className="icon-btn" onClick={closeModal} title={t('common.close')}>
                 <X size={16} />
               </button>
             </div>
 
             <form className="admin-form" onSubmit={handleSubmit}>
               <label>
-                Prenom
+                {t('adminPage.labelPrenom')}
                 <input
                   type="text"
                   value={form.prenom}
@@ -214,7 +216,7 @@ export default function AdminManagementPage() {
                 />
               </label>
               <label>
-                Nom
+                {t('adminPage.labelNom')}
                 <input
                   type="text"
                   value={form.nom}
@@ -223,7 +225,7 @@ export default function AdminManagementPage() {
                 />
               </label>
               <label>
-                Email
+                {t('adminPage.labelEmail')}
                 <input
                   type="email"
                   value={form.email}
@@ -232,7 +234,7 @@ export default function AdminManagementPage() {
                 />
               </label>
               <label>
-                Telephone
+                {t('adminPage.labelTel')}
                 <input
                   type="tel"
                   value={form.tel}
@@ -241,19 +243,19 @@ export default function AdminManagementPage() {
                 />
               </label>
               <label className="admin-form-full">
-                Role
+                {t('adminPage.labelRole')}
                 <input
                   type="text"
                   value={form.role}
                   onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))}
-                  placeholder="Ex. Super admin"
+                  placeholder={t('adminPage.rolePlaceholder')}
                   required
                 />
               </label>
 
               <div className="admin-form-actions admin-form-full">
-                <button type="button" className="agri-btn-outline" onClick={closeModal}>Annuler</button>
-                <button type="submit" className="btn-add-agri">Ajouter l'administrateur</button>
+                <button type="button" className="agri-btn-outline" onClick={closeModal}>{t('common.cancel')}</button>
+                <button type="submit" className="btn-add-agri">{t('adminPage.btnCreate')}</button>
               </div>
             </form>
           </div>

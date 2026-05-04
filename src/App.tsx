@@ -61,16 +61,7 @@ function statusType(statut: string) {
   }
 }
 
-function statusLabel(statut: string) {
-  switch (statut) {
-    case 'livree': return 'Livrée'
-    case 'en_transport': return 'En transport'
-    case 'en_attente': return 'En attente'
-    case 'assignee': return 'Assignée'
-    case 'recuperee': return 'Récupérée'
-    default: return statut
-  }
-}
+
 
 function App() {
   const { t } = useTranslation()
@@ -142,7 +133,7 @@ function App() {
         password,
       })
       if (authError) {
-        setLoginError('Email ou mot de passe incorrect.')
+        setLoginError(t('login.errorCredentials'))
         setLoginLoading(false)
         return
       }
@@ -153,13 +144,13 @@ function App() {
         .single()
       if (adminError || !adminData) {
         await getSupabaseClient().auth.signOut()
-        setLoginError("Cet utilisateur n'a pas les droits administrateur.")
+        setLoginError(t('login.errorNoAdmin'))
         setLoginLoading(false)
         return
       }
       setAdmin(adminData as Admin)
     } catch {
-      setLoginError('Une erreur est survenue. Veuillez réessayer.')
+      setLoginError(t('login.errorGeneric'))
     } finally {
       setLoginLoading(false)
     }
@@ -295,7 +286,7 @@ function App() {
                             <td>{c.produit}</td>
                             <td>
                               <span className={`status-badge status--${statusType(c.statut)}`}>
-                                {statusLabel(c.statut)}
+                                {({'livree': t('dashPanel.actLivree'), 'en_transport': t('dashPanel.actEnTransport'), 'en_attente': t('dashPanel.actEnAttente'), 'assignee': t('dashPanel.actAssignee'), 'recuperee': t('dashPanel.actRecuperee')} as Record<string, string>)[c.statut] ?? c.statut}
                               </span>
                             </td>
                             <td className="muted">{c.date_collecte ?? '—'}</td>
