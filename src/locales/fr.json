@@ -273,6 +273,15 @@
     "errNoId": "ID de commande introuvable, impossible de sauvegarder.",
     "errSave": "Erreur lors de la sauvegarde."
   },
+  "addressInput": {
+    "searching":             "Recherche...",
+    "searchingAddresses":    "Recherche d'adresses...",
+    "noSuggestions":         "Aucune suggestion trouvée pour cette adresse.",
+    "selectFromSuggestions": "Sélectionnez une adresse dans les suggestions.",
+    "loadError":             "Impossible de charger les suggestions d'adresse.",
+    "mapboxConfigError":     "Configuration Mapbox manquante : ajoutez VITE_MAPBOX_KEY dans le fichier .env",
+    "mapboxUnavailable":     "Autocomplétion indisponible : configurez VITE_MAPBOX_KEY."
+  },
   "adminPage": {
     "addBtn": "Ajouter un administrateur",
     "cardAdmins": "Administrateurs",

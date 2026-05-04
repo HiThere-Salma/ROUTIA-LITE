@@ -246,11 +246,30 @@
     "errSave":  "Error while saving."
   },
 
+  "addressInput": {
+    "searching":             "Searching...",
+    "searchingAddresses":    "Searching for addresses...",
+    "noSuggestions":         "No suggestion found for this address.",
+    "selectFromSuggestions": "Select an address from the suggestions.",
+    "loadError":             "Unable to load address suggestions.",
+    "mapboxConfigError":     "Mapbox configuration missing: add VITE_MAPBOX_KEY to your .env file",
+    "mapboxUnavailable":     "Autocomplete unavailable: configure VITE_MAPBOX_KEY."
+  },
+
   "adminPage": {
+    "heroSub":     "Manage internal accounts and assign platform access roles.",
     "addBtn":      "Add an administrator",
     "cardAdmins":  "Administrators",
+    "cardActifs":  "Active administrators",
+    "cardPending": "Pending invitations",
+    "cardRoles":   "Distinct roles",
     "cardSuper":   "Super admins",
     "cardAdmin":   "Admins",
+    "results":     "result(s)",
+    "statutActif":  "Active",
+    "statutInvite": "Invitation sent",
+    "labelRole":    "Role",
+    "rolePlaceholder": "E.g. Super admin",
     "searchPlaceholder": "Search an administrator",
     "thAdministrateur": "Administrator",
     "thContact": "Contact",
