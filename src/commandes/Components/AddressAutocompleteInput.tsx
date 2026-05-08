@@ -99,7 +99,7 @@ export default function AddressAutocompleteInput({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [disabled, isCompleteAddress, mapboxConfigError, onSelectionStateChange, shouldSearch, value]);
+  }, [disabled, isCompleteAddress, mapboxMissing, onSelectionStateChange, shouldSearch, t, value]);
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
