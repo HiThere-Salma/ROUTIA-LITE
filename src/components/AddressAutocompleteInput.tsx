@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type Suggestion = {
   id: string
@@ -41,6 +42,7 @@ export default function AddressAutocompleteInput({
   const [isLoading, setIsLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
 
+  const { t } = useTranslation()
   const canAutocomplete = useMemo(() => Boolean(MAPBOX_ACCESS_TOKEN), [])
 
   useEffect(() => {
@@ -149,7 +151,7 @@ export default function AddressAutocompleteInput({
 
       {canAutocomplete && isOpen && (isLoading || suggestions.length > 0) && (
         <div className="address-autocomplete-menu">
-          {isLoading && <div className="address-autocomplete-state">Recherche...</div>}
+          {isLoading && <div className="address-autocomplete-state">{t('addressInput.searching')}</div>}
           {!isLoading && suggestions.map((suggestion, index) => (
             <button
               key={suggestion.id}
@@ -164,7 +166,7 @@ export default function AddressAutocompleteInput({
       )}
 
       {!canAutocomplete && (
-        <span className="address-autocomplete-state">Autocompletion indisponible: configurez VITE_MAPBOX_KEY.</span>
+        <span className="address-autocomplete-state">{t('addressInput.mapboxUnavailable')}</span>
       )}
     </div>
   )

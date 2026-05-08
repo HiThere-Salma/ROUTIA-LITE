@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, Trash2, X } from "lucide-react";
 
 type CommandeDeleteModalProps = {
@@ -15,6 +16,7 @@ export default function CommandeDeleteModal({
   onCancel,
   deleting = false,
 }: CommandeDeleteModalProps) {
+  const { t } = useTranslation()
   if (!isOpen || !commandeId) return null;
 
   return (
@@ -31,14 +33,14 @@ export default function CommandeDeleteModal({
         </div>
 
         <h2 className="cmd-delete-title" id="cmd-delete-title">
-          Supprimer la commande
+          {t('cmdModal.deleteTitle')}
         </h2>
 
         <p className="cmd-delete-body">
-          Vous êtes sur le point de supprimer la commande{" "}
+          {t('cmdModal.deleteBodyPrefix')}{" "}
           <span className="cmd-delete-ref">#{commandeId}</span>.
           <br />
-          Cette action est <strong>irréversible</strong>.
+          Cette action est <strong>{t('cmdModal.deleteIrreversible')}</strong>.
         </p>
 
         <div className="cmd-delete-footer">
@@ -49,7 +51,7 @@ export default function CommandeDeleteModal({
             disabled={deleting}
           >
             <X size={14} />
-            Annuler
+            {t('common.cancel')}
           </button>
           <button
             className="cmd-delete-confirm-btn"
@@ -58,7 +60,7 @@ export default function CommandeDeleteModal({
             disabled={deleting}
           >
             <Trash2 size={14} />
-            {deleting ? "Suppression..." : "Supprimer"}
+            {deleting ? t('cmdModal.deleting') : t('routePage.btnDelete')}
           </button>
         </div>
       </div>

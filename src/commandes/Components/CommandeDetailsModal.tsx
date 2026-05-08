@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import CommandeStatusBadge from "./CommandeStatusBadge";
 import type { CommandeData } from "../commandes.types";
@@ -46,6 +47,7 @@ function formatPrice(value: unknown): string {
 const STATUS_KEYS = ["statut", "status", "etat"];
 
 export default function CommandeDetailsModal({ commande, commandeId, onClose }: CommandeDetailsModalProps) {
+  const { t } = useTranslation()
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -96,12 +98,12 @@ export default function CommandeDetailsModal({ commande, commandeId, onClose }: 
       <div className="cmd-modal cmd-modal--details" onClick={(e) => e.stopPropagation()}>
         <div className="cmd-modal-header">
           <div className="cmd-modal-title-wrap">
-            <h2 className="cmd-modal-title">Détails de la commande</h2>
+            <h2 className="cmd-modal-title">{t('cmdModal.detailsTitle')}</h2>
             <span className="cmd-details-id">#{commandeId}</span>
           </div>
           <div className="cmd-modal-header-right">
             <CommandeStatusBadge status={statusValue} />
-            <button className="cmd-modal-close" onClick={onClose} type="button" aria-label="Fermer">
+            <button className="cmd-modal-close" onClick={onClose} type="button" aria-label={t('common.close')}>
               <X size={18} />
             </button>
           </div>
@@ -110,64 +112,64 @@ export default function CommandeDetailsModal({ commande, commandeId, onClose }: 
         <div className="cmd-modal-body cmd-modal-body--details">
           <div className="cmd-modal-details-layout">
             <section className="cmd-modal-details-section">
-              <h3 className="cmd-modal-details-section-title">Informations générales</h3>
+              <h3 className="cmd-modal-details-section-title">{t('cmdModal.sectionGeneral')}</h3>
               <div className="cmd-modal-details-row">
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Produit</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.produit')}</span>
                   <span className="cmd-modal-details-value">{produit}</span>
                 </div>
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Prix</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.prix')}</span>
                   <span className="cmd-modal-details-value cmd-modal-details-value--mono">{prix}</span>
                 </div>
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Distance estimée</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.distanceEstimee')}</span>
                   <span className="cmd-modal-details-value">{distance}</span>
                 </div>
               </div>
             </section>
 
             <section className="cmd-modal-details-section">
-              <h3 className="cmd-modal-details-section-title">Planification</h3>
+              <h3 className="cmd-modal-details-section-title">{t('cmdModal.sectionPlanif')}</h3>
               <div className="cmd-modal-details-row">
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Date de collecte</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.dateCollecte')}</span>
                   <span className="cmd-modal-details-value">{dateCollecte}</span>
                 </div>
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Heure de livraison</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.heureLivraison')}</span>
                   <span className="cmd-modal-details-value">{heureLivraison}</span>
                 </div>
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Route associée</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.routeAssociee')}</span>
                   <span className="cmd-modal-details-value cmd-modal-details-value--mono">{routeId}</span>
                 </div>
               </div>
             </section>
 
             <section className="cmd-modal-details-section">
-              <h3 className="cmd-modal-details-section-title">Participants</h3>
+              <h3 className="cmd-modal-details-section-title">{t('cmdModal.sectionParticipants')}</h3>
               <div className="cmd-modal-details-row">
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Agriculteur</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.agriculteur')}</span>
                   <span className="cmd-modal-details-value">{agriculteur}</span>
                 </div>
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Transporteur</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.transporteur')}</span>
                   <span className="cmd-modal-details-value">{transporteur}</span>
                 </div>
               </div>
             </section>
 
             <section className="cmd-modal-details-section">
-              <h3 className="cmd-modal-details-section-title">Adresses</h3>
+              <h3 className="cmd-modal-details-section-title">{t('cmdModal.sectionAdresses')}</h3>
               <div className="cmd-modal-details-row cmd-modal-details-row--stack">
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Collecte</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.collecte')}</span>
                   <span className="cmd-modal-details-value cmd-modal-details-value--address">{adresseCollecte}</span>
                 </div>
                 <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">Livraison</span>
+                  <span className="cmd-modal-details-key">{t('cmdModal.livraison')}</span>
                   <span className="cmd-modal-details-value cmd-modal-details-value--address">{adresseLivraison}</span>
                 </div>
               </div>

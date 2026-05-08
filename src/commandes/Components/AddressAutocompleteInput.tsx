@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { MapPin } from "lucide-react";
 import {
-  getMapboxConfigError,
+  isMapboxConfigured,
   isLikelyCompleteAddress,
   searchAddressSuggestions,
   type MapboxAddressSuggestion,
@@ -39,20 +40,21 @@ export default function AddressAutocompleteInput({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<MapboxAddressSuggestion[]>([]);
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const mapboxConfigError = getMapboxConfigError();
+  const mapboxMissing = !isMapboxConfigured();
 
   const shouldSearch = useMemo(() => value.trim().length >= MIN_QUERY_LENGTH, [value]);
   const isCompleteAddress = useMemo(() => isLikelyCompleteAddress(value), [value]);
-  const showDropdown = open && shouldSearch && !disabled && !mapboxConfigError && !isCompleteAddress;
+  const showDropdown = open && shouldSearch && !disabled && !mapboxMissing && !isCompleteAddress;
 
   useEffect(() => {
-    if (mapboxConfigError) {
+    if (mapboxMissing) {
       setSuggestions([]);
       setOpen(false);
       setLoading(false);
-      setError(mapboxConfigError);
+      setError(t('addressInput.mapboxConfigError'));
       return;
     }
 
@@ -86,10 +88,7 @@ export default function AddressAutocompleteInput({
         setOpen(true);
       } catch (err) {
         if (!active) return;
-        const message = err instanceof Error
-          ? err.message
-          : "Impossible de charger les suggestions d'adresse.";
-        setError(message);
+        setError(t('addressInput.loadError'));
         setSuggestions([]);
       } finally {
         if (active) setLoading(false);
@@ -100,7 +99,7 @@ export default function AddressAutocompleteInput({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [disabled, isCompleteAddress, mapboxConfigError, onSelectionStateChange, shouldSearch, value]);
+  }, [disabled, isCompleteAddress, mapboxMissing, onSelectionStateChange, shouldSearch, t, value]);
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -127,7 +126,7 @@ export default function AddressAutocompleteInput({
   };
 
   const handleFocus = () => {
-    if (shouldSearch && !disabled && !mapboxConfigError && !isCompleteAddress) {
+    if (shouldSearch && !disabled && !mapboxMissing && !isCompleteAddress) {
       setOpen(true);
     }
   };
@@ -161,13 +160,13 @@ export default function AddressAutocompleteInput({
       </div>
 
       {!loading && selectionRequired && value.trim().length > 0 && !isSelected && !isCompleteAddress && (
-        <p className="cmd-address-warning">Selectionnez une adresse dans les suggestions.</p>
+        <p className="cmd-address-warning">{t('addressInput.selectFromSuggestions')}</p>
       )}
       {error && <p className="cmd-address-error">{error}</p>}
 
       {showDropdown && (
         <div className="cmd-address-dropdown" role="listbox" aria-label={`Suggestions ${label}`}>
-          {loading && <p className="cmd-address-hint">Recherche d'adresses...</p>}
+          {loading && <p className="cmd-address-hint">{t('addressInput.searchingAddresses')}</p>}
 
           {suggestions.map((item) => {
             const parts = toSuggestionParts(item.label);
@@ -187,7 +186,7 @@ export default function AddressAutocompleteInput({
           })}
 
           {!loading && suggestions.length === 0 && !error && (
-            <p className="cmd-address-hint">Aucune suggestion trouvee pour cette adresse.</p>
+            <p className="cmd-address-hint">{t('addressInput.noSuggestions')}</p>
           )}
         </div>
       )}
