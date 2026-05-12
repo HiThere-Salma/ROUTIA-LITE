@@ -1,5 +1,5 @@
 import './App.css'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getSupabaseClient } from './lib/supabase'
 import { ClipboardClock, Truck, CircleCheckBig, ChartColumn, Bell, Settings, Sprout, Map, LayoutDashboard, Loader, MailX, ClipboardList, LogOut, ShieldCheck } from 'lucide-react'
@@ -50,6 +50,16 @@ type Stats = {
   livraisonsCompletes: number
 }
 
+type AppTheme = 'dark' | 'light'
+
+type HeaderNotification = {
+  id: string
+  type: string
+  message: string
+  dateTime: string
+  read: boolean
+}
+
 function statusType(statut: string) {
   switch (statut) {
     case 'livree': return 'livre'
@@ -65,6 +75,8 @@ function statusType(statut: string) {
 
 function App() {
   const { t } = useTranslation()
+  const notificationsRef = useRef<HTMLDivElement>(null)
+  const settingsRef = useRef<HTMLDivElement>(null)
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [loginError, setLoginError] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
@@ -82,6 +94,13 @@ function App() {
   const [agriShowArchived] = useState(false)
   const [transModalOpen, setTransModalOpen] = useState(false)
   const [transShowArchived] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [theme, setTheme] = useState<AppTheme>(() => {
+    const storedTheme = localStorage.getItem('routia-theme')
+    return storedTheme === 'light' ? 'light' : 'dark'
+  })
+  const notifications: HeaderNotification[] = []
 
   const navItems = [
     { key: 'Dashboard', label: t('nav.dashboard'), icon: <LayoutDashboard size={16} /> },
@@ -93,6 +112,29 @@ function App() {
   ]
 
   const effectiveActive = (!admin?.issuper && active === 'Gestion des administrateurs') ? 'Dashboard' : active
+  const adminDisplayName = [admin?.prenom, admin?.nom_complet ?? admin?.nom].filter(Boolean).join(' ') || 'Administrateur'
+  const adminRole = admin?.issuper ? 'Super admin' : 'Admin'
+
+  useEffect(() => {
+    document.documentElement.classList.remove('theme-dark', 'theme-light')
+    document.documentElement.classList.add(`theme-${theme}`)
+    localStorage.setItem('routia-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node
+      if (notificationsRef.current && !notificationsRef.current.contains(target)) {
+        setNotificationsOpen(false)
+      }
+      if (settingsRef.current && !settingsRef.current.contains(target)) {
+        setSettingsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     if (!admin) return
@@ -217,8 +259,90 @@ function App() {
               <button className="btn-add-agri" onClick={() => setTransModalOpen(true)}>{t('topbar.addTransp')}</button>
             )}
             <LanguageSwitcher />
-            <button className="icon-btn"><Bell size={16} /></button>
-            <button className="icon-btn"><Settings size={16} /></button>
+            <div className="header-action" ref={notificationsRef}>
+              <button
+                className={`icon-btn${notificationsOpen ? ' icon-btn--active' : ''}`}
+                onClick={() => {
+                  setNotificationsOpen((open) => !open)
+                  setSettingsOpen(false)
+                }}
+                aria-haspopup="menu"
+                aria-expanded={notificationsOpen}
+                title="Notifications"
+              >
+                <Bell size={16} />
+              </button>
+              {notificationsOpen && (
+                <div className="header-dropdown header-dropdown--notifications" role="menu">
+                  <div className="header-dropdown-title">Notifications</div>
+                  {notifications.length === 0 ? (
+                    <div className="header-dropdown-empty">Aucune notification récente</div>
+                  ) : (
+                    <div className="notification-list">
+                      {notifications.map((notification) => (
+                        <div key={notification.id} className={`notification-item${notification.read ? '' : ' notification-item--unread'}`}>
+                          <div className="notification-meta">
+                            <span>{notification.type}</span>
+                            <span>{notification.dateTime}</span>
+                          </div>
+                          <div className="notification-message">{notification.message}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="header-action" ref={settingsRef}>
+              <button
+                className={`icon-btn${settingsOpen ? ' icon-btn--active' : ''}`}
+                onClick={() => {
+                  setSettingsOpen((open) => !open)
+                  setNotificationsOpen(false)
+                }}
+                aria-haspopup="menu"
+                aria-expanded={settingsOpen}
+                title="Paramètres"
+              >
+                <Settings size={16} />
+              </button>
+              {settingsOpen && (
+                <div className="header-dropdown header-dropdown--settings" role="menu">
+                  <div className="header-dropdown-title">Paramètres</div>
+
+                  <section className="settings-section">
+                    <div className="settings-section-title">Compte</div>
+                    <div className="settings-account">
+                      <div className="settings-account-avatar">{admin.prenom?.[0] ?? admin.email[0]?.toUpperCase() ?? 'A'}</div>
+                      <div>
+                        <div className="settings-account-name">{adminDisplayName}</div>
+                        <div className="settings-account-email">{admin.email}</div>
+                        <div className="settings-account-role">{adminRole}</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="settings-section">
+                    <div className="settings-section-title">Préférences</div>
+                    <div className="settings-row">
+                      <span>Thème</span>
+                      <div className="theme-segment" role="group" aria-label="Choix du thème">
+                        <button className={theme === 'dark' ? 'theme-segment-btn theme-segment-btn--active' : 'theme-segment-btn'} onClick={() => setTheme('dark')}>Sombre</button>
+                        <button className={theme === 'light' ? 'theme-segment-btn theme-segment-btn--active' : 'theme-segment-btn'} onClick={() => setTheme('light')}>Clair</button>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="settings-section">
+                    <div className="settings-section-title">Actions</div>
+                    <button className="settings-logout-btn" onClick={handleLogout}>
+                      <LogOut size={14} />
+                      <span>Se déconnecter</span>
+                    </button>
+                  </section>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
