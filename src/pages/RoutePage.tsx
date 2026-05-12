@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Search, Truck, X, ChevronDown, ChevronLeft, ChevronRight, Check, Navigation, AlertTriangle, Loader, MapPin, Calendar, Clock, Route, Pencil, Trash2, Mail, Phone } from 'lucide-react'
 import { getSupabaseClient } from '../lib/supabase/supabase.client'
+import { createNotification, type CreateNotificationPayload } from '../lib/notifications'
 
 const MAPQUEST_KEY = import.meta.env.VITE_MAPQUEST_KEY
 
@@ -46,6 +47,14 @@ const ROUTE_TO_CMD_STATUT: Record<RouteData['statut'], string> = {
   en_cours: 'en_transport',
   terminee: 'livree',
   annulee: 'annulee',
+}
+
+async function createAdminNotification(payload: CreateNotificationPayload) {
+  try {
+    await createNotification(payload)
+  } catch (err) {
+    console.error('Erreur creation notification admin:', err)
+  }
 }
 
 export default function RoutePage() {
@@ -196,12 +205,12 @@ export default function RoutePage() {
 
   async function sendRouteEmail(transporteurId: string, routeDate: string, commandeIds: string[], startAddress?: string) {
     const transporteur = transporteurs.find(t => t.id === transporteurId)
-    if (!transporteur) return
+    if (!transporteur) return false
     const mapsLink = await buildMapsLink(commandeIds, startAddress)
-    if (!mapsLink) return
+    if (!mapsLink) return false
     try {
       const supabase = getSupabaseClient()
-      await supabase.functions.invoke('send-route-email', {
+      const { error } = await supabase.functions.invoke('send-route-email', {
         body: {
           to: transporteur.email,
           phone: transporteur.telephone ?? null,
@@ -210,8 +219,11 @@ export default function RoutePage() {
           mapsLink,
         },
       })
+      if (error) throw error
+      return true
     } catch (err) {
       console.error('Erreur envoi notification:', err)
+      return false
     }
   }
 
@@ -227,7 +239,7 @@ export default function RoutePage() {
       if (!data) return
       const mapsLink = await buildMapsLink(commandeIds)
       if (!mapsLink) return
-      await supabase.functions.invoke('send-route-email', {
+      const { error } = await supabase.functions.invoke('send-route-email', {
         body: {
           to: data.email,
           phone: null,
@@ -235,6 +247,15 @@ export default function RoutePage() {
           routeDate,
           mapsLink,
         },
+      })
+      if (error) throw error
+      await createAdminNotification({
+        title: 'Itinéraire envoyé',
+        message: "Le lien d'itinéraire a été envoyé par email au transporteur.",
+        type: 'email',
+        entity_type: 'route',
+        entity_id: routeId,
+        target_role: 'admin',
       })
     } catch (err) {
       console.error('Erreur envoi email:', err)
@@ -255,7 +276,7 @@ export default function RoutePage() {
       if (!data) return
       const mapsLink = await buildMapsLink(commandeIds)
       if (!mapsLink) return
-      await supabase.functions.invoke('send-route-email', {
+      const { error } = await supabase.functions.invoke('send-route-email', {
         body: {
           to: null,
           phone: (data as TransporteurOption).telephone ?? null,
@@ -264,8 +285,25 @@ export default function RoutePage() {
           mapsLink,
         },
       })
+      if (error) throw error
+      await createAdminNotification({
+        title: 'SMS envoyé',
+        message: "Le lien d'itinéraire a été envoyé par SMS au transporteur.",
+        type: 'sms',
+        entity_type: 'route',
+        entity_id: routeId,
+        target_role: 'admin',
+      })
     } catch (err) {
       console.error('Erreur envoi SMS:', err)
+      await createAdminNotification({
+        title: 'Échec SMS',
+        message: "L'envoi du SMS au transporteur a échoué.",
+        type: 'warning',
+        entity_type: 'route',
+        entity_id: routeId,
+        target_role: 'admin',
+      })
     } finally {
       setSendingSms(null)
     }
@@ -370,7 +408,17 @@ export default function RoutePage() {
           if (statutErr) throw statutErr
         }
 
-        await sendRouteEmail(formTransporteurId, formDate, formCommandeIds, formAdresseDepart || undefined)
+        const emailSent = await sendRouteEmail(formTransporteurId, formDate, formCommandeIds, formAdresseDepart || undefined)
+        if (emailSent) {
+          await createAdminNotification({
+            title: 'Itinéraire envoyé',
+            message: "Le lien d'itinéraire a été envoyé par email au transporteur.",
+            type: 'email',
+            entity_type: 'route',
+            entity_id: editingRouteId,
+            target_role: 'admin',
+          })
+        }
 
       } else {
         const { data: newRoute, error: routeError } = await supabase
@@ -395,7 +443,26 @@ export default function RoutePage() {
           if (cmdError) throw cmdError
         }
 
-        await sendRouteEmail(formTransporteurId, formDate, formCommandeIds, formAdresseDepart || undefined)
+        await createAdminNotification({
+          title: 'Nouvelle route',
+          message: 'Une route a été créée et assignée à un transporteur.',
+          type: 'route',
+          entity_type: 'route',
+          entity_id: newRoute.id,
+          target_role: 'admin',
+        })
+
+        const emailSent = await sendRouteEmail(formTransporteurId, formDate, formCommandeIds, formAdresseDepart || undefined)
+        if (emailSent) {
+          await createAdminNotification({
+            title: 'Itinéraire envoyé',
+            message: "Le lien d'itinéraire a été envoyé par email au transporteur.",
+            type: 'email',
+            entity_type: 'route',
+            entity_id: newRoute.id,
+            target_role: 'admin',
+          })
+        }
       }
 
       setShowModal(false)

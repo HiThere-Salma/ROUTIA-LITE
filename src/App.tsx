@@ -10,6 +10,14 @@ import LoginPage from './pages/LoginPage'
 import AdminManagementPage from './pages/AdminManagementPage'
 import CommandesPage from './commandes/Pages/CommandesPage'
 import LanguageSwitcher from './components/LanguageSwitcher'
+import {
+  fetchAdminNotificationHistory,
+  fetchUnreadAdminNotifications,
+  fetchUnreadNotificationsCount,
+  markNotificationAsRead,
+  markNotificationsAsRead,
+  type AdminNotification,
+} from './lib/notifications'
 
 type Admin = {
   id: string
@@ -52,14 +60,6 @@ type Stats = {
 
 type AppTheme = 'dark' | 'light'
 
-type HeaderNotification = {
-  id: string
-  type: string
-  message: string
-  dateTime: string
-  read: boolean
-}
-
 function statusType(statut: string) {
   switch (statut) {
     case 'livree': return 'livre'
@@ -95,13 +95,18 @@ function App() {
   const [transModalOpen, setTransModalOpen] = useState(false)
   const [transShowArchived] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notifications, setNotifications] = useState<AdminNotification[]>([])
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0)
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [notificationsError, setNotificationsError] = useState('')
+  const [notificationHistory, setNotificationHistory] = useState<AdminNotification[]>([])
+  const [notificationHistoryLoading, setNotificationHistoryLoading] = useState(false)
+  const [notificationHistoryError, setNotificationHistoryError] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [theme, setTheme] = useState<AppTheme>(() => {
     const storedTheme = localStorage.getItem('routia-theme')
     return storedTheme === 'light' ? 'light' : 'dark'
   })
-  const notifications: HeaderNotification[] = []
-
   const navItems = [
     { key: 'Dashboard', label: t('nav.dashboard'), icon: <LayoutDashboard size={16} /> },
     ...(admin?.issuper ? [{ key: 'Gestion des administrateurs', label: t('nav.admins'), icon: <ShieldCheck size={16} /> }] : []),
@@ -114,6 +119,100 @@ function App() {
   const effectiveActive = (!admin?.issuper && active === 'Gestion des administrateurs') ? 'Dashboard' : active
   const adminDisplayName = [admin?.prenom, admin?.nom_complet ?? admin?.nom].filter(Boolean).join(' ') || 'Administrateur'
   const adminRole = admin?.issuper ? 'Super admin' : 'Admin'
+
+  async function loadNotifications() {
+    setNotificationsLoading(true)
+    setNotificationsError('')
+    try {
+      const [items, unreadCount] = await Promise.all([
+        fetchUnreadAdminNotifications(),
+        fetchUnreadNotificationsCount(),
+      ])
+      setNotifications(items)
+      setUnreadNotificationsCount(unreadCount)
+    } catch (err) {
+      console.error('Erreur chargement notifications:', err)
+      setNotificationsError('Impossible de charger les notifications.')
+    } finally {
+      setNotificationsLoading(false)
+    }
+  }
+
+  async function loadNotificationHistory() {
+    setNotificationHistoryLoading(true)
+    setNotificationHistoryError('')
+    try {
+      const items = await fetchAdminNotificationHistory()
+      setNotificationHistory(items)
+    } catch (err) {
+      console.error('Erreur historique notifications:', err)
+      setNotificationHistoryError("Impossible de charger l'historique des notifications.")
+    } finally {
+      setNotificationHistoryLoading(false)
+    }
+  }
+
+  function formatNotificationDate(value: string) {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
+  }
+
+  async function handleToggleNotifications() {
+    const nextOpen = !notificationsOpen
+    setNotificationsOpen(nextOpen)
+    setSettingsOpen(false)
+    if (nextOpen) await loadNotifications()
+  }
+
+  async function handleMarkNotificationsAsRead() {
+    try {
+      await markNotificationsAsRead()
+      await loadNotifications()
+      if (effectiveActive === 'Notifications') await loadNotificationHistory()
+    } catch (err) {
+      console.error('Erreur lecture notifications:', err)
+      setNotificationsError('Impossible de marquer les notifications comme lues.')
+    }
+  }
+
+  function isNotificationClickable(notification: AdminNotification) {
+    return Boolean(
+      notification.entity_id &&
+      (notification.entity_type === 'route' || notification.entity_type === 'commande'),
+    )
+  }
+
+  async function handleNotificationClick(notification: AdminNotification) {
+    if (!isNotificationClickable(notification)) return
+
+    try {
+      await markNotificationAsRead(notification.id)
+      await loadNotifications()
+      if (effectiveActive === 'Notifications') await loadNotificationHistory()
+    } catch (err) {
+      console.error('Erreur lecture notification:', err)
+    }
+
+    setNotificationsOpen(false)
+    const entityId = String(notification.entity_id)
+    const view = notification.entity_type === 'route' ? 'routes' : 'commandes'
+    window.history.replaceState(null, '', `?view=${view}&highlight=${encodeURIComponent(entityId)}`)
+    setActive(notification.entity_type === 'route' ? 'Gestion des routes' : 'Gestion des commandes')
+  }
+
+  function handleOpenNotificationHistory() {
+    setNotificationsOpen(false)
+    setSettingsOpen(false)
+    setActive('Notifications')
+    window.history.replaceState(null, '', '?view=notifications')
+    loadNotificationHistory()
+  }
 
   useEffect(() => {
     document.documentElement.classList.remove('theme-dark', 'theme-light')
@@ -135,6 +234,38 @@ function App() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    if (!admin) return
+
+    loadNotifications()
+
+    const channel = getSupabaseClient()
+      .channel('admin-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: 'target_role=eq.admin',
+        },
+        () => {
+          loadNotifications()
+          if (effectiveActive === 'Notifications') loadNotificationHistory()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      getSupabaseClient().removeChannel(channel)
+    }
+  }, [admin, effectiveActive])
+
+  useEffect(() => {
+    if (!admin || effectiveActive !== 'Notifications') return
+    loadNotificationHistory()
+  }, [admin, effectiveActive])
 
   useEffect(() => {
     if (!admin) return
@@ -262,34 +393,61 @@ function App() {
             <div className="header-action" ref={notificationsRef}>
               <button
                 className={`icon-btn${notificationsOpen ? ' icon-btn--active' : ''}`}
-                onClick={() => {
-                  setNotificationsOpen((open) => !open)
-                  setSettingsOpen(false)
-                }}
+                onClick={handleToggleNotifications}
                 aria-haspopup="menu"
                 aria-expanded={notificationsOpen}
                 title="Notifications"
               >
                 <Bell size={16} />
+                {unreadNotificationsCount > 0 && (
+                  <span className="notification-badge">{unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}</span>
+                )}
               </button>
               {notificationsOpen && (
                 <div className="header-dropdown header-dropdown--notifications" role="menu">
-                  <div className="header-dropdown-title">Notifications</div>
-                  {notifications.length === 0 ? (
+                  <div className="header-dropdown-head">
+                    <div className="header-dropdown-title">Notifications</div>
+                    {unreadNotificationsCount > 0 && (
+                      <button className="notifications-read-all" onClick={handleMarkNotificationsAsRead}>
+                        Tout marquer comme lu
+                      </button>
+                    )}
+                  </div>
+                  {notificationsLoading ? (
+                    <div className="header-dropdown-empty">Chargement...</div>
+                  ) : notificationsError ? (
+                    <div className="header-dropdown-empty header-dropdown-empty--error">{notificationsError}</div>
+                  ) : notifications.length === 0 ? (
                     <div className="header-dropdown-empty">Aucune notification récente</div>
                   ) : (
                     <div className="notification-list">
                       {notifications.map((notification) => (
-                        <div key={notification.id} className={`notification-item${notification.read ? '' : ' notification-item--unread'}`}>
+                        <div
+                          key={notification.id}
+                          className={`notification-item${notification.is_read ? '' : ' notification-item--unread'}${isNotificationClickable(notification) ? ' notification-item--clickable' : ''}`}
+                          onClick={() => handleNotificationClick(notification)}
+                          role={isNotificationClickable(notification) ? 'button' : undefined}
+                          tabIndex={isNotificationClickable(notification) ? 0 : undefined}
+                          onKeyDown={(event) => {
+                            if (isNotificationClickable(notification) && (event.key === 'Enter' || event.key === ' ')) {
+                              event.preventDefault()
+                              handleNotificationClick(notification)
+                            }
+                          }}
+                        >
                           <div className="notification-meta">
                             <span>{notification.type}</span>
-                            <span>{notification.dateTime}</span>
+                            <span>{formatNotificationDate(notification.created_at)}</span>
                           </div>
+                          <div className="notification-title">{notification.title}</div>
                           <div className="notification-message">{notification.message}</div>
                         </div>
                       ))}
                     </div>
                   )}
+                  <button className="notifications-history-link" onClick={handleOpenNotificationHistory}>
+                    Voir l'historique
+                  </button>
                 </div>
               )}
             </div>
@@ -489,6 +647,45 @@ function App() {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+        {effectiveActive === 'Notifications' && (
+          <div className="notifications-page">
+            <div className="notifications-page-hero">
+              <h1 className="dashboard-title">Historique des notifications</h1>
+              <p className="dashboard-sub">Toutes les notifications admin, lues et non lues.</p>
+            </div>
+
+            <div className="notifications-history-panel">
+              {notificationHistoryLoading ? (
+                <div className="panel-empty">
+                  <Loader size={28} color="var(--text-dim)" />
+                  <span>{t('common.loading')}</span>
+                </div>
+              ) : notificationHistoryError ? (
+                <div className="panel-empty notifications-history-error">{notificationHistoryError}</div>
+              ) : notificationHistory.length === 0 ? (
+                <div className="panel-empty">Aucune notification récente</div>
+              ) : (
+                <div className="notifications-history-list">
+                  {notificationHistory.map((notification) => (
+                    <div key={notification.id} className="notifications-history-item">
+                      <div className="notifications-history-main">
+                        <div className="notifications-history-title">{notification.title}</div>
+                        <div className="notifications-history-message">{notification.message}</div>
+                      </div>
+                      <div className="notifications-history-meta">
+                        <span className="notifications-history-type">{notification.type}</span>
+                        <span>{formatNotificationDate(notification.created_at)}</span>
+                        <span className={`notifications-history-status${notification.is_read ? ' notifications-history-status--read' : ' notifications-history-status--unread'}`}>
+                          {notification.is_read ? 'Lu' : 'Non lu'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
