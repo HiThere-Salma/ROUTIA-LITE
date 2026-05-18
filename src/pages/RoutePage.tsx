@@ -7,7 +7,7 @@ import { createNotification, type CreateNotificationPayload } from '../lib/notif
 const MAPQUEST_KEY = import.meta.env.VITE_MAPQUEST_KEY
 
 type RouteData = {
-  id: number
+  id: string
   transporteur: string
   transporteur_id: string
   date: string
@@ -16,7 +16,8 @@ type RouteData = {
   commandes: number
   commandeIds: string[]
   distance: number | null
-  statut: 'en_cours' | 'terminee' | 'planifiee' | 'annulee'
+  statut: 'en_cours' | 'terminee' | 'planifiee' | 'annulee' | 'echouee'
+  consistencyIssue: string | null
 }
 
 type TransporteurOption = { id: string; nom: string; prenom: string; email: string; telephone: string | null }
@@ -31,15 +32,18 @@ type CommandeOption = {
 
 type NavModal =
   | { type: 'none' }
-  | { type: 'input'; routeId: number }
+  | { type: 'input'; routeId: string }
   | { type: 'warning'; allAddresses: string[] }
   | { type: 'noCommandes' }
+
+const ROUTE_STATUSES = ['en_cours', 'terminee', 'planifiee', 'annulee', 'echouee'] as const
 
 const STATUT_MAP: Record<RouteData['statut'], { label: string; className: string }> = {
   en_cours:  { label: 'En cours',   className: 'rt-status--encours' },
   terminee:  { label: 'Terminée',   className: 'rt-status--terminee' },
   planifiee: { label: 'Planifiée',  className: 'rt-status--planifiee' },
   annulee:   { label: 'Annulée',   className: 'rt-status--annulee' },
+  echouee:   { label: 'Echouee',   className: 'rt-status--echouee' },
 }
 
 const ROUTE_TO_CMD_STATUT: Record<RouteData['statut'], string> = {
@@ -47,6 +51,34 @@ const ROUTE_TO_CMD_STATUT: Record<RouteData['statut'], string> = {
   en_cours: 'en_transport',
   terminee: 'livree',
   annulee: 'annulee',
+  echouee: 'echouee',
+}
+
+function normalizeRouteStatut(value: unknown): RouteData['statut'] {
+  return ROUTE_STATUSES.includes(value as RouteData['statut'])
+    ? (value as RouteData['statut'])
+    : 'planifiee'
+}
+
+function getRouteConsistencyIssue(routeStatut: RouteData['statut'], commandes: { statut: string }[]) {
+  if (commandes.length === 0) return null
+
+  const isFinalCommande = (statut: string) =>
+    ['livree', 'terminee', 'annulee', 'echouee'].includes(statut)
+
+  if (routeStatut === 'terminee' && commandes.some((c) => !isFinalCommande(c.statut))) {
+    return 'Route terminee, mais au moins une commande n est pas finalisee.'
+  }
+
+  if (commandes.every((c) => c.statut === 'livree') && routeStatut !== 'terminee') {
+    return 'Toutes les commandes sont livrees, la route devrait peut-etre etre terminee.'
+  }
+
+  if (commandes.every((c) => c.statut === 'echouee') && routeStatut !== 'echouee') {
+    return 'Toutes les commandes sont echouees, la route devrait peut-etre etre echouee.'
+  }
+
+  return null
 }
 
 async function createAdminNotification(payload: CreateNotificationPayload) {
@@ -66,6 +98,7 @@ export default function RoutePage() {
     terminee:  t('routePage.statusTerminee'),
     planifiee: t('routePage.statusPlanifiee'),
     annulee:   t('routePage.statusAnnulee'),
+    echouee:   t('routePage.statusEchouee', { defaultValue: 'Echouee' }),
   }
   const [routes, setRoutes] = useState<RouteData[]>([])
   const [loading, setLoading] = useState(true)
@@ -74,7 +107,7 @@ export default function RoutePage() {
   const itemsPerPage = 5
 
   const [showModal, setShowModal] = useState(false)
-  const [editingRouteId, setEditingRouteId] = useState<number | null>(null)
+  const [editingRouteId, setEditingRouteId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [formDate, setFormDate] = useState('')
   const [formHeureDepart, setFormHeureDepart] = useState('')
@@ -95,15 +128,15 @@ export default function RoutePage() {
   const timeStartRef = useRef<HTMLDivElement>(null)
   const timeEndRef = useRef<HTMLDivElement>(null)
 
-  const [deleteRouteId, setDeleteRouteId] = useState<number | null>(null)
+  const [deleteRouteId, setDeleteRouteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const [sendingEmail, setSendingEmail] = useState<number | null>(null)
-  const [sendingSms, setSendingSms] = useState<number | null>(null)
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null)
+  const [sendingSms, setSendingSms] = useState<string | null>(null)
 
   const [navModal, setNavModal] = useState<NavModal>({ type: 'none' })
   const [navInput, setNavInput] = useState('')
-  const [loadingRoute, setLoadingRoute] = useState<number | null>(null)
+  const [loadingRoute, setLoadingRoute] = useState<string | null>(null)
   const navInputRef = useRef<HTMLInputElement>(null)
 
   function resetForm() {
@@ -227,7 +260,7 @@ export default function RoutePage() {
     }
   }
 
-  async function handleSendEmail(routeId: number, transporteurId: string, routeDate: string, commandeIds: string[]) {
+  async function handleSendEmail(routeId: string, transporteurId: string, routeDate: string, commandeIds: string[]) {
     setSendingEmail(routeId)
     try {
       const supabase = getSupabaseClient()
@@ -264,7 +297,7 @@ export default function RoutePage() {
     }
   }
 
-  async function handleSendSms(routeId: number, transporteurId: string, routeDate: string, commandeIds: string[]) {
+  async function handleSendSms(routeId: string, transporteurId: string, routeDate: string, commandeIds: string[]) {
     setSendingSms(routeId)
     try {
       const supabase = getSupabaseClient()
@@ -314,7 +347,7 @@ export default function RoutePage() {
       const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .from('routes')
-        .select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, utilisateurs!transporteur_id(nom, prenom), commandes!route_id(id, statut, distance_estimee)')
+        .select('id, transporteur_id, date, heure_depart, heure_fin, distance_totale, statut, utilisateurs!transporteur_id(nom, prenom), commandes!route_id(id, statut, distance_estimee)')
         .order('date', { ascending: false })
 
       if (error) {
@@ -326,14 +359,7 @@ export default function RoutePage() {
         const utilisateur = r.utilisateurs as { nom: string; prenom: string } | null
         const cmds = (r.commandes ?? []) as { id: number; statut: string; distance_estimee: number | null }[]
 
-        let statut: RouteData['statut'] = 'planifiee'
-        if (cmds.length > 0) {
-          const allDone = cmds.every((c) => c.statut === 'livree' || c.statut === 'terminee')
-          const allCancelled = cmds.every((c) => c.statut === 'annulee')
-          if (allDone) statut = 'terminee'
-          else if (allCancelled) statut = 'annulee'
-          else statut = 'en_cours'
-        }
+        const statut = normalizeRouteStatut(r.statut)
 
         let distance: number | null = (r.distance_totale as number) ?? null
         if (distance == null && cmds.length > 0) {
@@ -342,7 +368,7 @@ export default function RoutePage() {
         }
 
         return {
-          id: r.id as number,
+          id: String(r.id),
           transporteur: utilisateur ? `${utilisateur.nom} ${utilisateur.prenom}` : '—',
           transporteur_id: (r.transporteur_id as string) ?? '',
           date: r.date as string,
@@ -352,6 +378,7 @@ export default function RoutePage() {
           commandeIds: cmds.map((c) => String(c.id)),
           distance,
           statut,
+          consistencyIssue: getRouteConsistencyIssue(statut, cmds),
         }
       })
 
@@ -379,6 +406,7 @@ export default function RoutePage() {
             date: formDate,
             heure_depart: formHeureDepart || null,
             heure_fin: formHeureFin || null,
+            statut: formStatut,
           })
           .eq('id', editingRouteId)
 
@@ -428,6 +456,7 @@ export default function RoutePage() {
             date: formDate,
             heure_depart: formHeureDepart || null,
             heure_fin: formHeureFin || null,
+            statut: formStatut,
           })
           .select('id')
           .single()
@@ -561,7 +590,7 @@ export default function RoutePage() {
     window.open(`https://www.google.com/maps/dir/${waypoints}`, '_blank')
   }
 
-  async function handleOpenMaps(routeId: number) {
+  async function handleOpenMaps(routeId: string) {
     setNavInput('')
     setNavModal({ type: 'input', routeId })
   }
@@ -749,6 +778,15 @@ export default function RoutePage() {
                       <span className={`rt-status-pill ${st.className}`}>
                         <span className="rt-status-dot" />
                         {STATUT_LABELS[r.statut]}
+                        {r.consistencyIssue && (
+                          <AlertTriangle
+                            size={13}
+                            className="rt-status-warning"
+                            aria-label={r.consistencyIssue}
+                          >
+                            <title>{r.consistencyIssue}</title>
+                          </AlertTriangle>
+                        )}
                       </span>
                     </td>
                     <td>

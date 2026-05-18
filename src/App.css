@@ -746,6 +746,7 @@ body {
 }
 
 :root.theme-light .rt-status--annulee,
+:root.theme-light .rt-status--echouee,
 :root.theme-light .tr-doc-icon--ko {
   background: rgba(220, 38, 38, 0.10);
   color: #dc2626;
@@ -2301,6 +2302,16 @@ body {
 .rt-status--annulee {
   background: #2a1010;
   color: #f87171;
+}
+
+.rt-status--echouee {
+  background: #2a1010;
+  color: #fb7185;
+}
+
+.rt-status-warning {
+  color: #fbbf24;
+  flex-shrink: 0;
 }
 
 /* Navigation button */
