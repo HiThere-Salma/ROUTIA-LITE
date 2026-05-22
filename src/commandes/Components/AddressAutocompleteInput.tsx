@@ -131,11 +131,18 @@ export default function AddressAutocompleteInput({
     }
   };
 
+  const formatSuggestionLabel = (labelValue: string) =>
+    labelValue
+      .replace(/\s*,\s*/g, ", ")
+      .replace(/([A-Za-zÀ-ÿ])(\d+\s)/g, "$1, $2")
+      .replace(/\s+/g, " ")
+      .trim();
+
   const toSuggestionParts = (labelValue: string) => {
-    const [main, ...rest] = labelValue.split(",");
+    const [main, ...rest] = formatSuggestionLabel(labelValue).split(",");
     return {
       main: main.trim(),
-      secondary: rest.join(",").trim(),
+      secondary: rest.join(", ").trim(),
     };
   };
 

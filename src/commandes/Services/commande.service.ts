@@ -10,7 +10,56 @@ import type {
     CommandeMutationPayload,
     RouteOption,
 } from "../commandes.types";
-import { geocodeCommandeAddresses } from "../../lib/geocoding";
+import { geocodeAddress } from "../../lib/geocoding";
+
+function hasValidCoords(lat: unknown, lng: unknown): lat is number {
+    return typeof lat === "number" && Number.isFinite(lat) && typeof lng === "number" && Number.isFinite(lng);
+}
+
+function hasPickupCoords(payload: CommandeMutationPayload): boolean {
+    return hasValidCoords(payload.pickup_lat, payload.pickup_lng);
+}
+
+function hasDropCoords(payload: CommandeMutationPayload): boolean {
+    return hasValidCoords(payload.drop_lat, payload.drop_lng);
+}
+
+async function resolveMissingCommandeCoords(
+    payload: CommandeMutationPayload,
+    includeNulls = false
+): Promise<Record<string, number | null>> {
+    const needsCollecte = Boolean(payload.adresse_collecte) && !hasPickupCoords(payload);
+    const needsLivraison = Boolean(payload.adresse_livraison) && !hasDropCoords(payload);
+
+    if (!needsCollecte && !needsLivraison) return {};
+
+    const [collecte, livraison] = await Promise.all([
+        needsCollecte ? geocodeAddress(payload.adresse_collecte ?? "") : Promise.resolve(null),
+        needsLivraison ? geocodeAddress(payload.adresse_livraison ?? "") : Promise.resolve(null),
+    ]);
+
+    const coords: Record<string, number | null> = {};
+    if (needsCollecte) {
+        if (collecte) {
+            coords.pickup_lat = collecte.lat;
+            coords.pickup_lng = collecte.lng;
+        } else if (includeNulls) {
+            coords.pickup_lat = null;
+            coords.pickup_lng = null;
+        }
+    }
+    if (needsLivraison) {
+        if (livraison) {
+            coords.drop_lat = livraison.lat;
+            coords.drop_lng = livraison.lng;
+        } else if (includeNulls) {
+            coords.drop_lat = null;
+            coords.drop_lng = null;
+        }
+    }
+
+    return coords;
+}
 
 export const getAllCommandes = async () => {
     try {
@@ -51,21 +100,12 @@ export const saveCommandeUpdate = async (id: string, payload: CommandeMutationPa
         const updated = await updateCommande(id, payload);
 
         // Géocodage en arrière-plan (non bloquant pour l'UX)
-        if (payload.adresse_collecte || payload.adresse_livraison) {
-            geocodeCommandeAddresses(
-                payload.adresse_collecte ?? "",
-                payload.adresse_livraison ?? ""
-            )
-                .then(({ collecte, livraison }) => {
-                    const coords: Record<string, number> = {};
-                    if (collecte) {
-                        coords.pickup_lat = collecte.lat;
-                        coords.pickup_lng = collecte.lng;
-                    }
-                    if (livraison) {
-                        coords.drop_lat = livraison.lat;
-                        coords.drop_lng = livraison.lng;
-                    }
+        if (
+            (payload.adresse_collecte && !hasPickupCoords(payload)) ||
+            (payload.adresse_livraison && !hasDropCoords(payload))
+        ) {
+            resolveMissingCommandeCoords(payload)
+                .then((coords) => {
                     if (Object.keys(coords).length > 0) {
                         updateCommande(id, coords).catch(console.warn);
                     }
@@ -87,19 +127,14 @@ export const createNewCommande = async (payload: CommandeMutationPayload) => {
     try {
         let payloadWithCoords: CommandeMutationPayload = { ...payload };
 
-        if (payload.adresse_collecte || payload.adresse_livraison) {
+        if (
+            (payload.adresse_collecte && !hasPickupCoords(payload)) ||
+            (payload.adresse_livraison && !hasDropCoords(payload))
+        ) {
             try {
-                const { collecte, livraison } = await geocodeCommandeAddresses(
-                    payload.adresse_collecte ?? "",
-                    payload.adresse_livraison ?? ""
-                );
-
                 payloadWithCoords = {
                     ...payload,
-                    pickup_lat: collecte?.lat ?? null,
-                    pickup_lng: collecte?.lng ?? null,
-                    drop_lat: livraison?.lat ?? null,
-                    drop_lng: livraison?.lng ?? null,
+                    ...(await resolveMissingCommandeCoords(payload, true)),
                 };
             } catch (geocodeError) {
                 // Keep creation flow resilient even if geocoding fails.
@@ -117,20 +152,8 @@ export const createNewCommande = async (payload: CommandeMutationPayload) => {
         ) {
             const createdId = String((created as Record<string, unknown>).id ?? "");
             if (createdId) {
-                geocodeCommandeAddresses(
-                    payload.adresse_collecte ?? "",
-                    payload.adresse_livraison ?? ""
-                )
-                    .then(({ collecte, livraison }) => {
-                        const coords: Record<string, number> = {};
-                        if (collecte) {
-                            coords.pickup_lat = collecte.lat;
-                            coords.pickup_lng = collecte.lng;
-                        }
-                        if (livraison) {
-                            coords.drop_lat = livraison.lat;
-                            coords.drop_lng = livraison.lng;
-                        }
+                resolveMissingCommandeCoords(payloadWithCoords)
+                    .then((coords) => {
                         if (Object.keys(coords).length > 0) {
                             updateCommande(createdId, coords).catch(console.warn);
                         }

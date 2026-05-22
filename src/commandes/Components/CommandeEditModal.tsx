@@ -17,6 +17,7 @@ import type {
   CommandeStatus,
   RouteOption,
 } from "../commandes.types";
+import type { GeoCoords, MapboxAddressSuggestion } from "../../lib/geocoding";
 
 const STATUT_OPTIONS: Array<{ value: CommandeStatus; label: string }> = [
   { value: "en_attente", label: "En attente" },
@@ -74,7 +75,11 @@ function toNullableNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function toMutationPayload(form: CommandeFormValues): CommandeMutationPayload {
+function toMutationPayload(
+  form: CommandeFormValues,
+  collecteCoords: GeoCoords | null,
+  livraisonCoords: GeoCoords | null
+): CommandeMutationPayload {
   return {
     agriculteur_id: form.agriculteur_id,
     route_id: form.route_id,
@@ -83,6 +88,12 @@ function toMutationPayload(form: CommandeFormValues): CommandeMutationPayload {
     distance_estimee: toNullableNumber(form.distance_estimee),
     adresse_collecte: form.adresse_collecte,
     adresse_livraison: form.adresse_livraison,
+    ...(collecteCoords
+      ? { pickup_lat: collecteCoords.lat, pickup_lng: collecteCoords.lng }
+      : {}),
+    ...(livraisonCoords
+      ? { drop_lat: livraisonCoords.lat, drop_lng: livraisonCoords.lng }
+      : {}),
     produit: form.produit,
     prix: toNullableNumber(form.prix),
     statut: form.statut,
@@ -127,6 +138,8 @@ export default function CommandeEditModal({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isCollecteAddressSelected, setIsCollecteAddressSelected] = useState(false);
   const [isLivraisonAddressSelected, setIsLivraisonAddressSelected] = useState(false);
+  const [collecteCoords, setCollecteCoords] = useState<GeoCoords | null>(null);
+  const [livraisonCoords, setLivraisonCoords] = useState<GeoCoords | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -136,6 +149,8 @@ export default function CommandeEditModal({
       setRouteSearch("");
       setIsCollecteAddressSelected(Boolean(nextForm.adresse_collecte));
       setIsLivraisonAddressSelected(Boolean(nextForm.adresse_livraison));
+      setCollecteCoords(null);
+      setLivraisonCoords(null);
       setSaveError(null);
     });
   }, [commande, isOpen, mode]);
@@ -204,6 +219,24 @@ export default function CommandeEditModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleCollecteChange = (value: string) => {
+    setCollecteCoords(null);
+    handleChange("adresse_collecte", value);
+  };
+
+  const handleLivraisonChange = (value: string) => {
+    setLivraisonCoords(null);
+    handleChange("adresse_livraison", value);
+  };
+
+  const handleCollecteSuggestionSelect = (suggestion: MapboxAddressSuggestion) => {
+    setCollecteCoords(suggestion.coords);
+  };
+
+  const handleLivraisonSuggestionSelect = (suggestion: MapboxAddressSuggestion) => {
+    setLivraisonCoords(suggestion.coords);
+  };
+
   const handleRouteSelection = (routeId: string) => {
     handleChange("route_id", routeId || null);
   };
@@ -227,7 +260,7 @@ export default function CommandeEditModal({
       return;
     }
 
-    const payload = toMutationPayload(form);
+    const payload = toMutationPayload(form, collecteCoords, livraisonCoords);
 
     if (isEditMode && !rawId) {
       setSaveError(t('cmdModal.errNoId'));
@@ -333,7 +366,8 @@ export default function CommandeEditModal({
               id="cmd-adresse-collecte"
               label={t('cmdModal.labelAdresseCollecte')}
               value={form.adresse_collecte}
-              onChange={(value) => handleChange("adresse_collecte", value)}
+              onChange={handleCollecteChange}
+              onSuggestionSelect={handleCollecteSuggestionSelect}
               isSelected={isCollecteAddressSelected}
               selectionRequired
               onSelectionStateChange={setIsCollecteAddressSelected}
@@ -346,7 +380,8 @@ export default function CommandeEditModal({
               id="cmd-adresse-livraison"
               label={t('cmdModal.labelAdresseLivraison')}
               value={form.adresse_livraison}
-              onChange={(value) => handleChange("adresse_livraison", value)}
+              onChange={handleLivraisonChange}
+              onSuggestionSelect={handleLivraisonSuggestionSelect}
               isSelected={isLivraisonAddressSelected}
               selectionRequired
               onSelectionStateChange={setIsLivraisonAddressSelected}
