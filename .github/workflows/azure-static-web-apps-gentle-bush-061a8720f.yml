@@ -40,6 +40,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_MAPQUEST_KEY: ${{ secrets.VITE_MAPQUEST_KEY }}
           VITE_MAPBOX_KEY: ${{ secrets.VITE_MAPBOX_KEY }}
+          VITE_RESEND_API_KEY: ${{ secrets.VITE_RESEND_API_KEY }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_BUSH_061A8720F }}
           action: "upload"
