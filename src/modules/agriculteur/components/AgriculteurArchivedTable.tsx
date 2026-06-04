@@ -6,9 +6,10 @@ type Props = {
   agriculteurs: Agriculteur[]
   isLoading: boolean
   onReactivate: (agriculteur: Agriculteur) => void
+  onSelect: (agriculteur: Agriculteur) => void
 }
 
-export function AgriculteurArchivedTable({ agriculteurs, isLoading, onReactivate }: Props) {
+export function AgriculteurArchivedTable({ agriculteurs, isLoading, onReactivate, onSelect }: Props) {
   const { t } = useTranslation()
   return (
     <table className="agri-table">
@@ -32,7 +33,7 @@ export function AgriculteurArchivedTable({ agriculteurs, isLoading, onReactivate
             <td colSpan={6} className="agri-table-empty">{t('agriPage.emptyArchived')}</td>
           </tr>
         ) : agriculteurs.map((agriculteur) => (
-          <AgriculteurArchivedTableRow key={agriculteur.id} agriculteur={agriculteur} onReactivate={onReactivate} />
+          <AgriculteurArchivedTableRow key={agriculteur.id} agriculteur={agriculteur} onReactivate={onReactivate} onSelect={onSelect} />
         ))}
       </tbody>
     </table>

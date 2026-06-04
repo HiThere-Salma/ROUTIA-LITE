@@ -344,6 +344,8 @@ export default function CommandesPage() {
             commande={isModalOpen ? selectedCommande : null}
             commandeId={isModalOpen ? selectedCommandeId : null}
             onClose={onCloseModal}
+            onEdit={onEditCommande}
+            onDelete={onDeleteCommande}
           />
 
           <CommandeEditModal

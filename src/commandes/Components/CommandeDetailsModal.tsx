@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import CommandeStatusBadge from "./CommandeStatusBadge";
 import type { CommandeData } from "../commandes.types";
 
@@ -8,6 +8,8 @@ type CommandeDetailsModalProps = {
   commande: CommandeData | null;
   commandeId: string | null;
   onClose: () => void;
+  onEdit?: (commandeId: string, commande: CommandeData) => void;
+  onDelete?: (commandeId: string, commande: CommandeData) => void;
 };
 
 function formatValue(value: unknown): string {
@@ -46,7 +48,7 @@ function formatPrice(value: unknown): string {
 
 const STATUS_KEYS = ["statut", "status", "etat"];
 
-export default function CommandeDetailsModal({ commande, commandeId, onClose }: CommandeDetailsModalProps) {
+export default function CommandeDetailsModal({ commande, commandeId, onClose, onEdit, onDelete }: CommandeDetailsModalProps) {
   const { t } = useTranslation()
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -92,91 +94,121 @@ export default function CommandeDetailsModal({ commande, commandeId, onClose }: 
     commande.duree
   );
   const prix = formatPrice(commande.prix ?? commande.montant);
+  const pickupCoords = firstNonEmpty(
+    commande.pickup_lat && commande.pickup_lng ? `${commande.pickup_lat}, ${commande.pickup_lng}` : "",
+    commande.latitude_collecte && commande.longitude_collecte ? `${commande.latitude_collecte}, ${commande.longitude_collecte}` : ""
+  );
+  const dropCoords = firstNonEmpty(
+    commande.drop_lat && commande.drop_lng ? `${commande.drop_lat}, ${commande.drop_lng}` : "",
+    commande.latitude_livraison && commande.longitude_livraison ? `${commande.latitude_livraison}, ${commande.longitude_livraison}` : ""
+  );
 
   return (
-    <div className="cmd-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="cmd-modal cmd-modal--details" onClick={(e) => e.stopPropagation()}>
-        <div className="cmd-modal-header">
-          <div className="cmd-modal-title-wrap">
-            <h2 className="cmd-modal-title">{t('cmdModal.detailsTitle')}</h2>
-            <span className="cmd-details-id">#{commandeId}</span>
+    <div className="rt-drawer-overlay" onClick={onClose} role="dialog" aria-modal="true">
+      <aside className="rt-drawer" onClick={(e) => e.stopPropagation()}>
+        <div className="rt-drawer-header">
+          <div>
+            <h2 className="rt-drawer-title">{t('cmdModal.detailsTitle')}</h2>
+            <span className="rt-drawer-subtitle">#{commandeId}</span>
           </div>
           <div className="cmd-modal-header-right">
             <CommandeStatusBadge status={statusValue} />
-            <button className="cmd-modal-close" onClick={onClose} type="button" aria-label={t('common.close')}>
+            <button className="rt-modal-close" onClick={onClose} type="button" aria-label={t('common.close')}>
               <X size={18} />
             </button>
           </div>
         </div>
 
-        <div className="cmd-modal-body cmd-modal-body--details">
-          <div className="cmd-modal-details-layout">
-            <section className="cmd-modal-details-section">
-              <h3 className="cmd-modal-details-section-title">{t('cmdModal.sectionGeneral')}</h3>
-              <div className="cmd-modal-details-row">
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.produit')}</span>
-                  <span className="cmd-modal-details-value">{produit}</span>
+        <div className="rt-drawer-body">
+            <section className="rt-detail-section">
+              <h3 className="rt-detail-section-title">{t('cmdModal.sectionGeneral')}</h3>
+              <div className="rt-detail-grid">
+                <div className="rt-detail-item">
+                  <span className="rt-detail-label">ID</span>
+                  <span className="rt-detail-value rt-detail-value--mono">#{commandeId}</span>
                 </div>
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.prix')}</span>
-                  <span className="cmd-modal-details-value cmd-modal-details-value--mono">{prix}</span>
+                <div className="rt-detail-item">
+                  <span className="rt-detail-label">{t('cmdModal.produit')}</span>
+                  <span className="rt-detail-value">{produit}</span>
                 </div>
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.distanceEstimee')}</span>
-                  <span className="cmd-modal-details-value">{distance}</span>
+                <div className="rt-detail-item">
+                  <span className="rt-detail-label">{t('cmdModal.prix')}</span>
+                  <span className="rt-detail-value rt-detail-value--mono">{prix}</span>
                 </div>
-              </div>
-            </section>
-
-            <section className="cmd-modal-details-section">
-              <h3 className="cmd-modal-details-section-title">{t('cmdModal.sectionPlanif')}</h3>
-              <div className="cmd-modal-details-row">
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.dateCollecte')}</span>
-                  <span className="cmd-modal-details-value">{dateCollecte}</span>
-                </div>
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.heureLivraison')}</span>
-                  <span className="cmd-modal-details-value">{heureLivraison}</span>
-                </div>
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.routeAssociee')}</span>
-                  <span className="cmd-modal-details-value cmd-modal-details-value--mono">{routeId}</span>
+                <div className="rt-detail-item">
+                  <span className="rt-detail-label">{t('cmdModal.distanceEstimee')}</span>
+                  <span className="rt-detail-value">{distance}</span>
                 </div>
               </div>
             </section>
 
-            <section className="cmd-modal-details-section">
-              <h3 className="cmd-modal-details-section-title">{t('cmdModal.sectionParticipants')}</h3>
-              <div className="cmd-modal-details-row">
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.agriculteur')}</span>
-                  <span className="cmd-modal-details-value">{agriculteur}</span>
+            <section className="rt-detail-section">
+              <h3 className="rt-detail-section-title">{t('cmdModal.sectionPlanif')}</h3>
+              <div className="rt-detail-grid">
+                <div className="rt-detail-item">
+                  <span className="rt-detail-label">{t('cmdModal.dateCollecte')}</span>
+                  <span className="rt-detail-value">{dateCollecte}</span>
                 </div>
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.transporteur')}</span>
-                  <span className="cmd-modal-details-value">{transporteur}</span>
+                <div className="rt-detail-item">
+                  <span className="rt-detail-label">{t('cmdModal.heureLivraison')}</span>
+                  <span className="rt-detail-value">{heureLivraison}</span>
+                </div>
+                <div className="rt-detail-item rt-detail-item--wide">
+                  <span className="rt-detail-label">{t('cmdModal.routeAssociee')}</span>
+                  <span className="rt-detail-value rt-detail-value--mono">{routeId}</span>
                 </div>
               </div>
             </section>
 
-            <section className="cmd-modal-details-section">
-              <h3 className="cmd-modal-details-section-title">{t('cmdModal.sectionAdresses')}</h3>
-              <div className="cmd-modal-details-row cmd-modal-details-row--stack">
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.collecte')}</span>
-                  <span className="cmd-modal-details-value cmd-modal-details-value--address">{adresseCollecte}</span>
+            <section className="rt-detail-section">
+              <h3 className="rt-detail-section-title">{t('cmdModal.sectionParticipants')}</h3>
+              <div className="rt-detail-grid">
+                <div className="rt-detail-item">
+                  <span className="rt-detail-label">{t('cmdModal.agriculteur')}</span>
+                  <span className="rt-detail-value">{agriculteur}</span>
                 </div>
-                <div className="cmd-modal-details-item">
-                  <span className="cmd-modal-details-key">{t('cmdModal.livraison')}</span>
-                  <span className="cmd-modal-details-value cmd-modal-details-value--address">{adresseLivraison}</span>
+                <div className="rt-detail-item">
+                  <span className="rt-detail-label">{t('cmdModal.transporteur')}</span>
+                  <span className="rt-detail-value">{transporteur}</span>
                 </div>
               </div>
             </section>
-          </div>
+
+            <section className="rt-detail-section">
+              <h3 className="rt-detail-section-title">{t('cmdModal.sectionAdresses')}</h3>
+              <div className="rt-detail-grid">
+                <div className="rt-detail-item rt-detail-item--wide">
+                  <span className="rt-detail-label">{t('cmdModal.collecte')}</span>
+                  <span className="rt-detail-value">{adresseCollecte}</span>
+                  <span className="rt-detail-muted">{pickupCoords}</span>
+                </div>
+                <div className="rt-detail-item rt-detail-item--wide">
+                  <span className="rt-detail-label">{t('cmdModal.livraison')}</span>
+                  <span className="rt-detail-value">{adresseLivraison}</span>
+                  <span className="rt-detail-muted">{dropCoords}</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="rt-detail-section">
+              <h3 className="rt-detail-section-title">Actions rapides</h3>
+              <div className="rt-detail-actions">
+                {onEdit && (
+                  <button type="button" className="rt-detail-action" onClick={() => { onEdit(commandeId, commande); onClose(); }}>
+                    <Pencil size={14} />
+                    <span>{t('routePage.btnEdit', { defaultValue: 'Modifier' })}</span>
+                  </button>
+                )}
+                {onDelete && (
+                  <button type="button" className="rt-detail-action" onClick={() => { onDelete(commandeId, commande); onClose(); }}>
+                    <Trash2 size={14} />
+                    <span>{t('routePage.btnDelete', { defaultValue: 'Supprimer' })}</span>
+                  </button>
+                )}
+              </div>
+            </section>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { Transporteur } from '../types/transporteur.types'
+import { RotateCcw } from 'lucide-react'
 import { AVATAR_COLORS } from '../constants/transporteur.constants'
 import { getAdresse, getTrId } from '../utils/transporteur.utils'
 import { DocBadge } from './DocBadge'
@@ -6,15 +7,26 @@ import { DocBadge } from './DocBadge'
 type Props = {
   transporteur: Transporteur
   onReactivate: (transporteur: Transporteur) => void
+  onSelect: (transporteur: Transporteur) => void
 }
 
-export function TransporteurArchivedTableRow({ transporteur, onReactivate }: Props) {
+export function TransporteurArchivedTableRow({ transporteur, onReactivate, onSelect }: Props) {
   const initials = `${transporteur.nom[0]}${transporteur.prenom[0]}`
   const colorIndex = (transporteur.nom.charCodeAt(0) + transporteur.nom.charCodeAt(transporteur.nom.length - 1)) % AVATAR_COLORS.length
   const palette = AVATAR_COLORS[colorIndex]
 
   return (
-    <tr className="tr-row--archived">
+    <tr
+      className="tr-row--archived tr-row--clickable"
+      onClick={() => onSelect(transporteur)}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onSelect(transporteur)
+        }
+      }}
+    >
       <td>
         <div className="tr-name-cell">
           <span className="tr-avatar" style={{ background: palette.bg, color: palette.color }}>
@@ -26,10 +38,10 @@ export function TransporteurArchivedTableRow({ transporteur, onReactivate }: Pro
           </div>
         </div>
       </td>
-      <td className="tr-mono">{transporteur.cin || '—'}</td>
+      <td className="tr-mono">{transporteur.cin || '-'}</td>
       <td>
         <div className="tr-contact">
-          <span className="tr-tel">{transporteur.telephone || '—'}</span>
+          <span className="tr-tel">{transporteur.telephone || '-'}</span>
           <span className="tr-email">{transporteur.email}</span>
         </div>
       </td>
@@ -43,12 +55,12 @@ export function TransporteurArchivedTableRow({ transporteur, onReactivate }: Pro
       <td className="tr-adresse">
         <div className="tr-name-info">
           <span>{getAdresse(transporteur)}</span>
-          <span className="tr-ville">{transporteur.ville?.toUpperCase() ?? '—'}</span>
+          <span className="tr-ville">{transporteur.ville?.toUpperCase() ?? '-'}</span>
         </div>
       </td>
       <td>
         <div className="agri-actions">
-          <button className="agri-action-btn agri-action-btn--reactivate" title="Réactiver" onClick={() => onReactivate(transporteur)}>↺</button>
+          <button className="agri-action-btn agri-action-btn--reactivate" title="Reactiver" onClick={(event) => { event.stopPropagation(); onReactivate(transporteur) }}><RotateCcw size={14} /></button>
         </div>
       </td>
     </tr>

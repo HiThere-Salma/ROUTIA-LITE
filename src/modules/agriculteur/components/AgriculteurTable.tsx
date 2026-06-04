@@ -7,9 +7,10 @@ type Props = {
   isLoading: boolean
   onEdit: (agriculteur: Agriculteur) => void
   onArchive: (agriculteur: Agriculteur) => void
+  onSelect: (agriculteur: Agriculteur) => void
 }
 
-export function AgriculteurTable({ agriculteurs, isLoading, onEdit, onArchive }: Props) {
+export function AgriculteurTable({ agriculteurs, isLoading, onEdit, onArchive, onSelect }: Props) {
   const { t } = useTranslation()
   return (
     <table className="agri-table">
@@ -33,7 +34,7 @@ export function AgriculteurTable({ agriculteurs, isLoading, onEdit, onArchive }:
             <td colSpan={6} className="agri-table-empty">{t('agriPage.empty')}</td>
           </tr>
         ) : agriculteurs.map((agriculteur) => (
-          <AgriculteurTableRow key={agriculteur.id} agriculteur={agriculteur} onEdit={onEdit} onArchive={onArchive} />
+          <AgriculteurTableRow key={agriculteur.id} agriculteur={agriculteur} onEdit={onEdit} onArchive={onArchive} onSelect={onSelect} />
         ))}
       </tbody>
     </table>

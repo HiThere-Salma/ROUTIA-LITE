@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Loader, Package, X } from 'lucide-react'
 import { useAgriculteurs } from '../hooks/useAgriculteurs'
 import { useArchivedAgriculteurs } from '../hooks/useArchivedAgriculteurs'
 import { useArchiveAgriculteur } from '../hooks/useArchiveAgriculteur'
@@ -11,6 +12,7 @@ import { ConfirmArchiveModal } from '../../../components/ConfirmArchiveModal'
 import { ConfirmReactivateModal } from '../../../components/ConfirmReactivateModal'
 import { PAGE_SIZE } from '../constants/agriculteur.constants'
 import { formatLastUpdated } from '../utils/agriculteur.utils'
+import { getSupabaseClient } from '../../../lib/supabase/supabase.client'
 import type { Agriculteur } from '../types/agriculteur.types'
 
 type AgriculteurFilters = {
@@ -20,6 +22,15 @@ type AgriculteurFilters = {
   email: string
   villeAdresse: string
   statut: 'tous' | 'actif' | 'archive'
+}
+
+type AgriculteurCommandeDetail = {
+  id: string
+  produit: string
+  date_collecte: string
+  statut: string
+  adresse_collecte: string
+  adresse_livraison: string
 }
 
 const EMPTY_FILTERS: AgriculteurFilters = {
@@ -43,6 +54,14 @@ function getFullAdresse(agriculteur: Agriculteur): string {
     agriculteur.ville,
     agriculteur.code_postal,
   ].filter(Boolean).join(' ')
+}
+
+function detailValue(value: string | null | undefined): string {
+  return value?.trim() || 'Non renseigne'
+}
+
+function shortId(id: string): string {
+  return id.slice(0, 8)
 }
 
 function matchesAgriculteurFilters(agriculteur: Agriculteur, filters: AgriculteurFilters): boolean {
@@ -124,6 +143,9 @@ export default function AgriculteurPage({ isModalOpen, onCloseModal, showArchive
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [draftFilters, setDraftFilters] = useState<AgriculteurFilters>(EMPTY_FILTERS)
   const [appliedFilters, setAppliedFilters] = useState<AgriculteurFilters>(EMPTY_FILTERS)
+  const [selectedAgriculteur, setSelectedAgriculteur] = useState<Agriculteur | null>(null)
+  const [agriculteurCommandes, setAgriculteurCommandes] = useState<AgriculteurCommandeDetail[]>([])
+  const [loadingAgriculteurDetails, setLoadingAgriculteurDetails] = useState(false)
 
   const { handleArchive, isArchiving, archiveError } = useArchiveAgriculteur(() => {
     setArchiveItem(null)
@@ -164,6 +186,79 @@ export default function AgriculteurPage({ isModalOpen, onCloseModal, showArchive
     setPage(1)
   }
 
+  const closeAgriculteurDetails = () => {
+    setSelectedAgriculteur(null)
+    setAgriculteurCommandes([])
+    setLoadingAgriculteurDetails(false)
+  }
+
+  const openAgriculteurEdit = (agriculteur: Agriculteur) => {
+    closeAgriculteurDetails()
+    setEditItem(agriculteur)
+  }
+
+  const openAgriculteurArchive = (agriculteur: Agriculteur) => {
+    closeAgriculteurDetails()
+    setArchiveItem(agriculteur)
+  }
+
+  const openAgriculteurReactivate = (agriculteur: Agriculteur) => {
+    closeAgriculteurDetails()
+    setReactivateItem(agriculteur)
+  }
+
+  useEffect(() => {
+    if (!selectedAgriculteur) return
+
+    let ignore = false
+
+    async function fetchCommandes() {
+      setLoadingAgriculteurDetails(true)
+      try {
+        const supabase = getSupabaseClient()
+        const { data, error } = await supabase
+          .from('commandes')
+          .select('id, produit, date_collecte, statut, adresse_collecte, adresse_livraison')
+          .eq('agriculteur_id', selectedAgriculteur.id)
+          .order('date_collecte', { ascending: false })
+
+        if (error) throw error
+        if (!ignore) {
+          setAgriculteurCommandes(((data ?? []) as Array<Record<string, unknown>>).map((commande) => ({
+            id: String(commande.id ?? ''),
+            produit: String(commande.produit ?? ''),
+            date_collecte: String(commande.date_collecte ?? ''),
+            statut: String(commande.statut ?? ''),
+            adresse_collecte: String(commande.adresse_collecte ?? ''),
+            adresse_livraison: String(commande.adresse_livraison ?? ''),
+          })))
+        }
+      } catch (error) {
+        console.error('Erreur chargement commandes agriculteur:', error)
+        if (!ignore) setAgriculteurCommandes([])
+      } finally {
+        if (!ignore) setLoadingAgriculteurDetails(false)
+      }
+    }
+
+    void fetchCommandes()
+
+    return () => {
+      ignore = true
+    }
+  }, [selectedAgriculteur])
+
+  useEffect(() => {
+    if (!selectedAgriculteur) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeAgriculteurDetails()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [selectedAgriculteur])
+
   return (
     <div className="agri-page">
       <div className="dashboard-hero">
@@ -194,6 +289,7 @@ export default function AgriculteurPage({ isModalOpen, onCloseModal, showArchive
             agriculteurs={displayedAgriculteurs}
             isLoading={isLoadingArchived}
             onReactivate={(ag) => setReactivateItem(ag)}
+            onSelect={(ag) => setSelectedAgriculteur(ag)}
           />
         ) : (
           <AgriculteurTable
@@ -201,6 +297,7 @@ export default function AgriculteurPage({ isModalOpen, onCloseModal, showArchive
             isLoading={isLoading}
             onEdit={(ag) => setEditItem(ag)}
             onArchive={(ag) => setArchiveItem(ag)}
+            onSelect={(ag) => setSelectedAgriculteur(ag)}
           />
         )}
 
@@ -217,6 +314,124 @@ export default function AgriculteurPage({ isModalOpen, onCloseModal, showArchive
           </div>
         </div>
       </div>
+
+      {selectedAgriculteur && (
+        <div className="rt-drawer-overlay" onClick={closeAgriculteurDetails}>
+          <aside className="rt-drawer" onClick={(event) => event.stopPropagation()} aria-modal="true" role="dialog">
+            <div className="rt-drawer-header">
+              <div>
+                <h2 className="rt-drawer-title">Details de l'agriculteur</h2>
+                <span className="rt-drawer-subtitle">#{shortId(selectedAgriculteur.id)}</span>
+              </div>
+              <button className="rt-modal-close" type="button" onClick={closeAgriculteurDetails} aria-label={t('common.close')}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="rt-drawer-body">
+              <section className="rt-detail-section">
+                <h3 className="rt-detail-section-title">Informations generales</h3>
+                <div className="rt-detail-grid">
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">ID</span>
+                    <span className="rt-detail-value rt-detail-value--mono">#{shortId(selectedAgriculteur.id)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">Statut</span>
+                    <span className="rt-detail-value">{selectedAgriculteur.is_archived ? 'Archive' : 'Actif'}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">Nom</span>
+                    <span className="rt-detail-value">{detailValue(selectedAgriculteur.nom)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">Prenom</span>
+                    <span className="rt-detail-value">{detailValue(selectedAgriculteur.prenom)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">CIN</span>
+                    <span className="rt-detail-value rt-detail-value--mono">{detailValue(selectedAgriculteur.cin)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">Creation</span>
+                    <span className="rt-detail-value">{detailValue(selectedAgriculteur.date_creation)}</span>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rt-detail-section">
+                <h3 className="rt-detail-section-title">Contact et adresse</h3>
+                <div className="rt-detail-grid">
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">Telephone</span>
+                    <span className="rt-detail-value rt-detail-value--mono">{detailValue(selectedAgriculteur.telephone)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">Email</span>
+                    <span className="rt-detail-value">{detailValue(selectedAgriculteur.email)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">Ville</span>
+                    <span className="rt-detail-value">{detailValue(selectedAgriculteur.ville)}</span>
+                  </div>
+                  <div className="rt-detail-item rt-detail-item--wide">
+                    <span className="rt-detail-label">Adresse</span>
+                    <span className="rt-detail-value">{detailValue(getFullAdresse(selectedAgriculteur))}</span>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rt-detail-section">
+                <h3 className="rt-detail-section-title">Commandes liees</h3>
+                {loadingAgriculteurDetails ? (
+                  <div className="rt-detail-empty">
+                    <Loader size={16} className="nv-spin" />
+                    <span>{t('common.loading')}</span>
+                  </div>
+                ) : agriculteurCommandes.length === 0 ? (
+                  <div className="rt-detail-empty">Aucune commande liee</div>
+                ) : (
+                  <div className="rt-detail-commandes">
+                    {agriculteurCommandes.map((commande) => (
+                      <article key={commande.id} className="rt-detail-commande">
+                        <div className="rt-detail-commande-head">
+                          <span className="rt-detail-value rt-detail-value--mono">CMD{shortId(commande.id).toUpperCase()}</span>
+                          <span className="rt-detail-badge">{detailValue(commande.statut)}</span>
+                        </div>
+                        <div className="rt-detail-commande-line">{detailValue(commande.produit)}</div>
+                        <div className="rt-detail-muted">{detailValue(commande.date_collecte)}</div>
+                        <div className="rt-detail-address">
+                          <Package size={12} />
+                          <span>{detailValue(commande.adresse_collecte)}</span>
+                        </div>
+                        <div className="rt-detail-address">
+                          <Package size={12} />
+                          <span>{detailValue(commande.adresse_livraison)}</span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="rt-detail-section">
+                <h3 className="rt-detail-section-title">Actions rapides</h3>
+                <div className="rt-detail-actions">
+                  {!selectedAgriculteur.is_archived && (
+                    <>
+                      <button type="button" className="rt-detail-action" onClick={() => openAgriculteurEdit(selectedAgriculteur)}>Modifier</button>
+                      <button type="button" className="rt-detail-action" onClick={() => openAgriculteurArchive(selectedAgriculteur)}>Archiver</button>
+                    </>
+                  )}
+                  {selectedAgriculteur.is_archived && (
+                    <button type="button" className="rt-detail-action" onClick={() => openAgriculteurReactivate(selectedAgriculteur)}>Reactiver</button>
+                  )}
+                </div>
+              </section>
+            </div>
+          </aside>
+        </div>
+      )}
 
       <AgriculteurFormModal
         isOpen={isModalOpen || !!editItem}

@@ -6,9 +6,10 @@ type Props = {
   transporteurs: Transporteur[]
   isLoading: boolean
   onReactivate: (transporteur: Transporteur) => void
+  onSelect: (transporteur: Transporteur) => void
 }
 
-export function TransporteurArchivedTable({ transporteurs, isLoading, onReactivate }: Props) {
+export function TransporteurArchivedTable({ transporteurs, isLoading, onReactivate, onSelect }: Props) {
   const { t } = useTranslation()
   return (
     <table className="tr-table">
@@ -32,7 +33,7 @@ export function TransporteurArchivedTable({ transporteurs, isLoading, onReactiva
             <td colSpan={6} className="agri-table-empty">{t('transpPage.emptyArchived')}</td>
           </tr>
         ) : transporteurs.map((transporteur) => (
-          <TransporteurArchivedTableRow key={transporteur.id} transporteur={transporteur} onReactivate={onReactivate} />
+          <TransporteurArchivedTableRow key={transporteur.id} transporteur={transporteur} onReactivate={onReactivate} onSelect={onSelect} />
         ))}
       </tbody>
     </table>

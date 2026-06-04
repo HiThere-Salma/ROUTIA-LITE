@@ -1806,6 +1806,18 @@ body {
 .agri-table tbody tr:last-child td { border-bottom: none; }
 .agri-table tbody tr:hover td { background: var(--bg3); transition: background 0.12s; }
 
+.agri-row--clickable,
+.tr-row--clickable {
+  cursor: pointer;
+}
+
+.agri-row--clickable:focus-visible td,
+.tr-row--clickable:focus-visible td,
+.rt-row--clickable:focus-visible td {
+  outline: 1px solid var(--green-mid);
+  outline-offset: -1px;
+}
+
 .agri-name-cell { display: flex; align-items: center; gap: 12px; }
 
 .agri-avatar {
