@@ -16,7 +16,7 @@ type RouteData = {
   commandes: number
   commandeIds: string[]
   distance: number | null
-  statut: 'en_cours' | 'terminee' | 'planifiee' | 'annulee' | 'echouee'
+  statut: 'assignee' | 'en_cours' | 'terminee' | 'planifiee' | 'annulee' | 'echouee'
   consistencyIssue: string | null
 }
 
@@ -30,15 +30,26 @@ type CommandeOption = {
   agriculteur: string
 }
 
+type RouteCommandeDetail = {
+  id: string
+  produit: string
+  statut: string
+  adresse_collecte: string
+  adresse_livraison: string
+  distance_estimee: number | null
+}
+
 type NavModal =
   | { type: 'none' }
   | { type: 'input'; routeId: string }
   | { type: 'warning'; allAddresses: string[] }
   | { type: 'noCommandes' }
 
-const ROUTE_STATUSES = ['en_cours', 'terminee', 'planifiee', 'annulee', 'echouee'] as const
+const ROUTE_STATUSES = ['assignee', 'en_cours', 'terminee', 'planifiee', 'annulee', 'echouee'] as const
+const EDITABLE_ROUTE_STATUSES: RouteData['statut'][] = ['assignee', 'en_cours', 'terminee', 'echouee']
 
 const STATUT_MAP: Record<RouteData['statut'], { label: string; className: string }> = {
+  assignee:  { label: 'Assignee',   className: 'rt-status--planifiee' },
   en_cours:  { label: 'En cours',   className: 'rt-status--encours' },
   terminee:  { label: 'Terminée',   className: 'rt-status--terminee' },
   planifiee: { label: 'Planifiée',  className: 'rt-status--planifiee' },
@@ -47,6 +58,7 @@ const STATUT_MAP: Record<RouteData['statut'], { label: string; className: string
 }
 
 const ROUTE_TO_CMD_STATUT: Record<RouteData['statut'], string> = {
+  assignee: 'assignee',
   planifiee: 'en_attente',
   en_cours: 'en_transport',
   terminee: 'livree',
@@ -57,7 +69,7 @@ const ROUTE_TO_CMD_STATUT: Record<RouteData['statut'], string> = {
 function normalizeRouteStatut(value: unknown): RouteData['statut'] {
   return ROUTE_STATUSES.includes(value as RouteData['statut'])
     ? (value as RouteData['statut'])
-    : 'planifiee'
+    : 'assignee'
 }
 
 function getRouteConsistencyIssue(routeStatut: RouteData['statut'], commandes: { statut: string }[]) {
@@ -89,11 +101,20 @@ async function createAdminNotification(payload: CreateNotificationPayload) {
   }
 }
 
+function getSupabaseErrorMessage(err: unknown, fallback: string) {
+  if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+    return `${fallback} ${err.message}`
+  }
+
+  return fallback
+}
+
 export default function RoutePage() {
   const { t } = useTranslation()
   const DAYS   = t('routePage.days',   { returnObjects: true }) as string[]
   const MONTHS = t('routePage.months', { returnObjects: true }) as string[]
   const STATUT_LABELS: Record<RouteData['statut'], string> = {
+    assignee:  t('routePage.statusAssignee', { defaultValue: 'Assignee' }),
     en_cours:  t('routePage.statusEnCours'),
     terminee:  t('routePage.statusTerminee'),
     planifiee: t('routePage.statusPlanifiee'),
@@ -114,8 +135,9 @@ export default function RoutePage() {
   const [formHeureFin, setFormHeureFin] = useState('')
   const [formTransporteurId, setFormTransporteurId] = useState('')
   const [formCommandeIds, setFormCommandeIds] = useState<string[]>([])
-  const [formStatut, setFormStatut] = useState<RouteData['statut']>('planifiee')
+  const [formStatut, setFormStatut] = useState<RouteData['statut']>('assignee')
   const [formAdresseDepart, setFormAdresseDepart] = useState('')
+  const [submitError, setSubmitError] = useState('')
   const [transporteurs, setTransporteurs] = useState<TransporteurOption[]>([])
   const [commandesOptions, setCommandesOptions] = useState<CommandeOption[]>([])
 
@@ -134,6 +156,10 @@ export default function RoutePage() {
   const [sendingEmail, setSendingEmail] = useState<string | null>(null)
   const [sendingSms, setSendingSms] = useState<string | null>(null)
 
+  const [selectedRoute, setSelectedRoute] = useState<RouteData | null>(null)
+  const [routeCommandes, setRouteCommandes] = useState<RouteCommandeDetail[]>([])
+  const [loadingRouteDetails, setLoadingRouteDetails] = useState(false)
+
   const [navModal, setNavModal] = useState<NavModal>({ type: 'none' })
   const [navInput, setNavInput] = useState('')
   const [loadingRoute, setLoadingRoute] = useState<string | null>(null)
@@ -145,13 +171,15 @@ export default function RoutePage() {
     setFormHeureFin('')
     setFormTransporteurId('')
     setFormCommandeIds([])
-    setFormStatut('planifiee')
+    setFormStatut('assignee')
     setFormAdresseDepart('')
+    setSubmitError('')
     setEditingRouteId(null)
   }
 
   useEffect(() => {
     if (!showModal) return
+    setSubmitError('')
     const supabase = getSupabaseClient()
 
     supabase
@@ -394,6 +422,7 @@ export default function RoutePage() {
     e.preventDefault()
     if (!formTransporteurId || !formDate) return
     setSubmitting(true)
+    setSubmitError('')
 
     try {
       const supabase = getSupabaseClient()
@@ -499,7 +528,11 @@ export default function RoutePage() {
       setLoading(true)
       fetchRoutes()
     } catch (err) {
+      const fallback = editingRouteId
+        ? 'Impossible de modifier la route.'
+        : 'Impossible de creer la route. Verifiez les informations puis reessayez.'
       console.error(editingRouteId ? 'Erreur modification route:' : 'Erreur création route:', err)
+      setSubmitError(getSupabaseErrorMessage(err, fallback))
     } finally {
       setSubmitting(false)
     }
@@ -576,6 +609,32 @@ export default function RoutePage() {
   function selectTime(setter: (v: string) => void, closeFn: (v: boolean) => void, h: number, m: number) {
     setter(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
     closeFn(false)
+  }
+
+  function formatRouteDate(dateStr: string) {
+    if (!dateStr) return t('routePage.notProvided', { defaultValue: 'Non renseigné' })
+    const [y, m, d] = dateStr.split('-').map(Number)
+    if (!y || !m || !d) return dateStr
+    return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
+
+  function formatRouteValue(value: string | number | null | undefined, suffix = '') {
+    if (value === null || value === undefined || value === '') {
+      return t('routePage.notProvided', { defaultValue: 'Non renseigné' })
+    }
+
+    return `${value}${suffix}`
+  }
+
+  function closeRouteDetails() {
+    setSelectedRoute(null)
+    setRouteCommandes([])
+    setLoadingRouteDetails(false)
+  }
+
+  function handleQuickEdit(route: RouteData) {
+    closeRouteDetails()
+    handleEdit(route)
   }
 
   const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -661,6 +720,59 @@ export default function RoutePage() {
     void load()
   }, [])
 
+  useEffect(() => {
+    if (!selectedRoute) return
+
+    let ignore = false
+
+    async function fetchRouteDetails() {
+      setLoadingRouteDetails(true)
+      try {
+        const supabase = getSupabaseClient()
+        const { data, error } = await supabase
+          .from('commandes')
+          .select('id, produit, statut, adresse_collecte, adresse_livraison, distance_estimee')
+          .eq('route_id', selectedRoute.id)
+          .order('id')
+
+        if (error) throw error
+
+        if (!ignore) {
+          setRouteCommandes(((data ?? []) as Array<Record<string, unknown>>).map((c) => ({
+            id: String(c.id ?? ''),
+            produit: String(c.produit ?? ''),
+            statut: String(c.statut ?? ''),
+            adresse_collecte: String(c.adresse_collecte ?? ''),
+            adresse_livraison: String(c.adresse_livraison ?? ''),
+            distance_estimee: (c.distance_estimee as number | null) ?? null,
+          })))
+        }
+      } catch (err) {
+        console.error('Erreur chargement details route:', err)
+        if (!ignore) setRouteCommandes([])
+      } finally {
+        if (!ignore) setLoadingRouteDetails(false)
+      }
+    }
+
+    void fetchRouteDetails()
+
+    return () => {
+      ignore = true
+    }
+  }, [selectedRoute])
+
+  useEffect(() => {
+    if (!selectedRoute) return
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') closeRouteDetails()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [selectedRoute])
+
   const filtered = routes.filter(
     (r) =>
       String(r.id).toLowerCase().includes(search.toLowerCase()) ||
@@ -725,7 +837,18 @@ export default function RoutePage() {
               paginated.map((r) => {
                 const st = STATUT_MAP[r.statut]
                 return (
-                  <tr key={r.id} className="rt-row">
+                  <tr
+                    key={r.id}
+                    className="rt-row rt-row--clickable"
+                    onClick={() => setSelectedRoute(r)}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setSelectedRoute(r)
+                      }
+                    }}
+                  >
                     <td>
                       <span className="rt-id">#{String(r.id).slice(0, 8)}</span>
                     </td>
@@ -760,7 +883,10 @@ export default function RoutePage() {
                           className="rt-send-btn"
                           title={t('routePage.btnSendEmail')}
                           disabled={sendingEmail === r.id}
-                          onClick={() => handleSendEmail(r.id, r.transporteur_id, r.date, r.commandeIds)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSendEmail(r.id, r.transporteur_id, r.date, r.commandeIds)
+                          }}
                         >
                           {sendingEmail === r.id ? <Loader size={13} className="nv-spin" /> : <Mail size={13} />}
                         </button>
@@ -768,7 +894,10 @@ export default function RoutePage() {
                           className="rt-send-btn"
                           title={t('routePage.btnSendSms')}
                           disabled={sendingSms === r.id}
-                          onClick={() => handleSendSms(r.id, r.transporteur_id, r.date, r.commandeIds)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSendSms(r.id, r.transporteur_id, r.date, r.commandeIds)
+                          }}
                         >
                           {sendingSms === r.id ? <Loader size={13} className="nv-spin" /> : <Phone size={13} />}
                         </button>
@@ -791,13 +920,23 @@ export default function RoutePage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="rt-nav-btn" title={t('routePage.btnEdit')} onClick={() => handleEdit(r)}>
+                        <button
+                          className="rt-nav-btn"
+                          title={t('routePage.btnEdit')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEdit(r)
+                          }}
+                        >
                           <Pencil size={14} />
                         </button>
                         <button
                           className="rt-nav-btn"
                           title={t('routePage.btnItinerary')}
-                          onClick={() => handleOpenMaps(r.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenMaps(r.id)
+                          }}
                           disabled={loadingRoute === r.id}
                         >
                           {loadingRoute === r.id ? <Loader size={14} className="nv-spin" /> : <Navigation size={14} />}
@@ -805,7 +944,10 @@ export default function RoutePage() {
                         <button
                           className="rt-nav-btn rt-nav-btn--danger"
                           title="Supprimer"
-                          onClick={() => setDeleteRouteId(r.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeleteRouteId(r.id)
+                          }}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -836,6 +978,144 @@ export default function RoutePage() {
         </div>
       </div>
 
+      {selectedRoute && (
+        <div className="rt-drawer-overlay" onClick={closeRouteDetails}>
+          <aside className="rt-drawer" onClick={(e) => e.stopPropagation()} aria-modal="true" role="dialog">
+            <div className="rt-drawer-header">
+              <div>
+                <h2 className="rt-drawer-title">{t('routePage.detailsTitle', { defaultValue: 'Détails de la route' })}</h2>
+                <span className="rt-drawer-subtitle">#{selectedRoute.id.slice(0, 8)}</span>
+              </div>
+              <button className="rt-modal-close" onClick={closeRouteDetails} aria-label={t('common.close')}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="rt-drawer-body">
+              <section className="rt-detail-section">
+                <h3 className="rt-detail-section-title">{t('routePage.detailsGeneral', { defaultValue: 'Informations générales' })}</h3>
+                <div className="rt-detail-grid">
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">{t('routePage.detailCode', { defaultValue: 'Code route' })}</span>
+                    <span className="rt-detail-value rt-detail-value--mono">#{selectedRoute.id.slice(0, 8)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">{t('routePage.labelDate')}</span>
+                    <span className="rt-detail-value">{formatRouteDate(selectedRoute.date)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">{t('routePage.labelHeureDebut')}</span>
+                    <span className="rt-detail-value">{formatRouteValue(selectedRoute.heureDebut)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">{t('routePage.labelHeureFin')}</span>
+                    <span className="rt-detail-value">{formatRouteValue(selectedRoute.heureFin)}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">{t('routePage.thDistance')}</span>
+                    <span className="rt-detail-value">{selectedRoute.distance != null ? `${selectedRoute.distance} km` : t('routePage.notProvided', { defaultValue: 'Non renseigné' })}</span>
+                  </div>
+                  <div className="rt-detail-item">
+                    <span className="rt-detail-label">{t('routePage.thCommandes')}</span>
+                    <span className="rt-detail-value">{selectedRoute.commandes}</span>
+                  </div>
+                  <div className="rt-detail-item rt-detail-item--wide">
+                    <span className="rt-detail-label">{t('routePage.thStatut')}</span>
+                    <span className={`rt-status-pill ${STATUT_MAP[selectedRoute.statut].className}`}>
+                      <span className="rt-status-dot" />
+                      {STATUT_LABELS[selectedRoute.statut]}
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rt-detail-section">
+                <h3 className="rt-detail-section-title">{t('routePage.detailsTransporteur', { defaultValue: 'Transporteur' })}</h3>
+                <div className="rt-detail-carrier">
+                  <span className="rt-avatar"><Truck size={14} /></span>
+                  <div>
+                    <span className="rt-detail-value">{formatRouteValue(selectedRoute.transporteur)}</span>
+                    <span className="rt-detail-muted">{formatRouteValue(selectedRoute.transporteur_id)}</span>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rt-detail-section">
+                <h3 className="rt-detail-section-title">{t('routePage.detailsCommandes', { defaultValue: 'Commandes associées' })}</h3>
+                {loadingRouteDetails ? (
+                  <div className="rt-detail-empty">
+                    <Loader size={16} className="nv-spin" />
+                    <span>{t('routePage.loading')}</span>
+                  </div>
+                ) : routeCommandes.length === 0 ? (
+                  <div className="rt-detail-empty">{t('routePage.noAssociatedOrders', { defaultValue: 'Aucune commande associée' })}</div>
+                ) : (
+                  <div className="rt-detail-commandes">
+                    {routeCommandes.map((commande) => (
+                      <article key={commande.id} className="rt-detail-commande">
+                        <div className="rt-detail-commande-head">
+                          <span className="rt-detail-value rt-detail-value--mono">CMD{commande.id.slice(0, 4).toUpperCase()}</span>
+                          <span className="rt-detail-badge">{formatRouteValue(commande.statut)}</span>
+                        </div>
+                        <div className="rt-detail-commande-line">{formatRouteValue(commande.produit)}</div>
+                        <div className="rt-detail-address">
+                          <MapPin size={12} />
+                          <span>{formatRouteValue(commande.adresse_collecte)}</span>
+                        </div>
+                        <div className="rt-detail-address">
+                          <Navigation size={12} />
+                          <span>{formatRouteValue(commande.adresse_livraison)}</span>
+                        </div>
+                        <div className="rt-detail-muted">
+                          {commande.distance_estimee != null ? `${commande.distance_estimee} km` : t('routePage.notProvided', { defaultValue: 'Non renseigné' })}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="rt-detail-section">
+                <h3 className="rt-detail-section-title">{t('routePage.detailsQuickActions', { defaultValue: 'Actions rapides' })}</h3>
+                <div className="rt-detail-actions">
+                  <button type="button" className="rt-detail-action" onClick={() => handleQuickEdit(selectedRoute)}>
+                    <Pencil size={14} />
+                    <span>{t('routePage.btnEdit')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="rt-detail-action"
+                    disabled={sendingEmail === selectedRoute.id}
+                    onClick={() => handleSendEmail(selectedRoute.id, selectedRoute.transporteur_id, selectedRoute.date, selectedRoute.commandeIds)}
+                  >
+                    {sendingEmail === selectedRoute.id ? <Loader size={14} className="nv-spin" /> : <Mail size={14} />}
+                    <span>{t('routePage.btnSendEmail')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="rt-detail-action"
+                    disabled={sendingSms === selectedRoute.id}
+                    onClick={() => handleSendSms(selectedRoute.id, selectedRoute.transporteur_id, selectedRoute.date, selectedRoute.commandeIds)}
+                  >
+                    {sendingSms === selectedRoute.id ? <Loader size={14} className="nv-spin" /> : <Phone size={14} />}
+                    <span>{t('routePage.btnSendSms')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="rt-detail-action"
+                    disabled={loadingRoute === selectedRoute.id}
+                    onClick={() => handleOpenMaps(selectedRoute.id)}
+                  >
+                    {loadingRoute === selectedRoute.id ? <Loader size={14} className="nv-spin" /> : <Navigation size={14} />}
+                    <span>{t('routePage.btnItinerary')}</span>
+                  </button>
+                </div>
+              </section>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {showModal && (
         <div className="rt-modal-overlay" onClick={() => setShowModal(false)}>
           <div className="nv-modal" onClick={(e) => e.stopPropagation()}>
@@ -863,8 +1143,8 @@ export default function RoutePage() {
                   <span className="nv-label">{t('routePage.labelStatut')}</span>
                   <div className="nv-select-wrap">
                     <select className="nv-select" value={formStatut} onChange={(e) => setFormStatut(e.target.value as RouteData['statut'])}>
-                      {Object.entries(STATUT_MAP).map(([key]) => (
-                        <option key={key} value={key}>{STATUT_LABELS[key as RouteData['statut']]}</option>
+                      {EDITABLE_ROUTE_STATUSES.map((key) => (
+                        <option key={key} value={key}>{STATUT_LABELS[key]}</option>
                       ))}
                     </select>
                     <ChevronDown size={14} className="nv-select-chevron" />
@@ -1028,6 +1308,23 @@ export default function RoutePage() {
                   )}
                 </div>
               </div>
+
+              {submitError && (
+                <div
+                  role="alert"
+                  style={{
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: 8,
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    color: '#fca5a5',
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    padding: '10px 12px',
+                  }}
+                >
+                  {submitError}
+                </div>
+              )}
 
               <button type="submit" className="nv-submit" disabled={submitting || !formTransporteurId || formCommandeIds.length === 0}>
                 {submitting ? <Loader size={16} className="nv-spin" /> : <Navigation size={16} />}
